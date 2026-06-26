@@ -2,19 +2,19 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
 
-const connectionString = process.env.DATABASE_URL;
+// DATABASE_URL must be set at runtime (not build time).
+// Next.js evaluates this module during build — don't throw here,
+// only fail when an actual DB call is made without the variable.
+const connectionString = process.env.DATABASE_URL ?? '';
 
-if (!connectionString && process.env.NODE_ENV === 'production') {
-  throw new Error('DATABASE_URL is required in production.');
-}
-
-// postgres-js with pgBouncer compatibility (prepare: false) and SSL
-const client = postgres(connectionString || '', {
+const client = postgres(connectionString || 'postgresql://localhost/placeholder', {
   prepare: false,
   ssl: connectionString ? 'require' : false,
   max: 10,
   idle_timeout: 20,
   connect_timeout: 10,
+  // When there's no real connection string, prevent actual connections
+  ...(connectionString ? {} : { max: 0 }),
 });
 
 export const db = drizzle(client, { schema });
