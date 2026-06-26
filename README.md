@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🐄 CowSis — Cattle & Pasture Management System
 
-## Getting Started
+A complete web system for managing cattle farms, built to replace disorganized Excel spreadsheets with a reliable, centralized, and device-accessible solution.
 
-First, run the development server:
+> **Delivered and running in production.**
+
+---
+
+## 📋 About
+
+### The problem
+
+The client managed multiple cattle farms using Excel spreadsheets. Over time they became hard to maintain: duplicated data, unreliable history, no mobile access, and no way to properly track pasture rotation.
+
+### The solution
+
+CowSis centralizes all farm management in a modern web application — accessible from any device, with consistent data and complete audit history.
+
+---
+
+## ✨ Features
+
+- **Animal management:** full registry per head (breed, weight, age, history)
+- **Pasture control:** pasture mapping and rotation, capacity and current occupancy
+- **History:** movement records, weigh-ins, and events per animal
+- **Dashboard:** herd overview with key metrics and alerts
+- **Multi-farm:** manage multiple properties in the same system
+- **Authenticated access:** role-based access control
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework:** Next.js (App Router)
+- **Language:** TypeScript
+- **ORM:** Drizzle ORM
+- **Database:** PostgreSQL
+- **Styling:** Tailwind CSS
+- **Deployment:** Vercel
+
+---
+
+## 🚀 Running locally
 
 ```bash
+git clone https://github.com/CoimbraJP/cowsis.git
+cd cowsis
+npm install
+cp .env.example .env.local
+# Fill in the database connection string and other variables
+npm run db:migrate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🌐 Live
 
-## Learn More
+[cowsis.vercel.app](https://cowsis.vercel.app)
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 👨‍💻 Author
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**João Paulo Coimbra**
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-coimbrajp-0A66C2?style=flat&logo=linkedin)](https://www.linkedin.com/in/coimbrajp/)
+[![GitHub](https://img.shields.io/badge/GitHub-CoimbraJP-181717?style=flat&logo=github)](https://github.com/CoimbraJP)
