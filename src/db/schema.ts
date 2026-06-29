@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, boolean, integer, date, timestamp, text, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, boolean, integer, date, text, pgEnum } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Enums
@@ -6,7 +6,7 @@ export const animalCategoryEnum = pgEnum('animal_category', ['VACA', 'BEZERRO', 
 export const animalStatusEnum = pgEnum('animal_status', ['ACTIVE', 'SOLD', 'DEAD']);
 export const birthStatusEnum = pgEnum('birth_status', ['ALIVE', 'STILLBORN']);
 export const insemStatusEnum = pgEnum('insem_status', ['PENDING', 'CONFIRMED', 'FAILED']);
-export const transactionTypeEnum = pgEnum('transaction_type', ['SALE', 'DEATH', 'BIRTH', 'ACQUISITION']);
+export const transactionTypeEnum = pgEnum('transaction_type', ['SALE', 'DEATH', 'BIRTH', 'ACQUISITION', 'TRANSFER', 'VACCINE']);
 
 // Tables
 export const pastures = pgTable('pastures', {
@@ -17,7 +17,7 @@ export const pastures = pgTable('pastures', {
 
 export const animals = pgTable('animals', {
   id: serial('id').primaryKey(),
-  tagNumber: varchar('tag_number', { length: 100 }), // can be null or "sem brinco"
+  tagNumber: varchar('tag_number', { length: 100 }),
   category: animalCategoryEnum('category').notNull(),
   status: animalStatusEnum('status').default('ACTIVE').notNull(),
   currentPastureId: integer('current_pasture_id').references(() => pastures.id),
@@ -26,7 +26,7 @@ export const animals = pgTable('animals', {
 export const pastureInventories = pgTable('pasture_inventories', {
   id: serial('id').primaryKey(),
   inventoryDate: date('inventory_date'),
-  name: varchar('name', { length: 255 }), // e.g., "JANEIRO", "2026-06-10"
+  name: varchar('name', { length: 255 }),
   pastureId: integer('pasture_id').references(() => pastures.id).notNull(),
   observations: text('observations'),
 });
@@ -63,6 +63,9 @@ export const animalTransactions = pgTable('animal_transactions', {
   transactionDate: date('transaction_date'),
   monthLabel: varchar('month_label', { length: 50 }),
   notes: text('notes'),
+  // For TRANSFER: which pasture the animal came from and went to
+  fromPastureId: integer('from_pasture_id').references(() => pastures.id),
+  toPastureId:   integer('to_pasture_id').references(() => pastures.id),
 });
 
 // Relations
@@ -119,5 +122,15 @@ export const animalTransactionsRelations = relations(animalTransactions, ({ one 
   animal: one(animals, {
     fields: [animalTransactions.animalId],
     references: [animals.id],
+  }),
+  fromPasture: one(pastures, {
+    fields: [animalTransactions.fromPastureId],
+    references: [pastures.id],
+    relationName: 'fromPasture',
+  }),
+  toPasture: one(pastures, {
+    fields: [animalTransactions.toPastureId],
+    references: [pastures.id],
+    relationName: 'toPasture',
   }),
 }));

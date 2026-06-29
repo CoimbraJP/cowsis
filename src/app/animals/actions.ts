@@ -41,17 +41,68 @@ export async function updateAnimal(id: number, formData: FormData) {
   revalidatePath(`/animals/${id}`);
 }
 
-export async function moveAnimalToPasture(animalId: number, pastureId: number | null) {
+export async function moveAnimalToPasture(
+  animalId: number,
+  fromPastureId: number | null,
+  toPastureId: number | null,
+  moveDate: string | null,
+) {
+  // Update the animal's current pasture
   await db.update(animals)
-    .set({ currentPastureId: pastureId })
+    .set({ currentPastureId: toPastureId })
     .where(eq(animals.id, animalId));
+
+  // Register the transfer in transactions
+  const today = new Date().toISOString().split('T')[0];
+  await db.insert(animalTransactions).values({
+    animalId,
+    type: 'TRANSFER',
+    transactionDate: moveDate || today,
+    fromPastureId: fromPastureId,
+    toPastureId: toPastureId,
+    notes: null,
+    monthLabel: null,
+  });
 
   revalidatePath('/animals');
   revalidatePath('/pastures');
+  revalidatePath(`/pastures/${fromPastureId}`);
+  revalidatePath(`/pastures/${toPastureId}`);
+  revalidatePath(`/animals/${animalId}`);
+  revalidatePath('/transactions');
+}
+
+export async function addVaccine(formData: FormData) {
+  const animalId = Number(formData.get('animalId'));
+  const vaccineName = (formData.get('vaccineName') as string)?.trim();
+  const vaccineDate = (formData.get('vaccineDate') as string) || new Date().toISOString().split('T')[0];
+
+  if (!animalId || !vaccineName) return;
+
+  await db.insert(animalTransactions).values({
+    animalId,
+    type: 'VACCINE',
+    transactionDate: vaccineDate,
+    notes: vaccineName,
+    monthLabel: null,
+    fromPastureId: null,
+    toPastureId: null,
+  });
+
+  revalidatePath(`/animals/${animalId}`);
+  revalidatePath('/transactions');
+}
+
+export async function updateTransactionDate(txId: number, newDate: string) {
+  await db.update(animalTransactions)
+    .set({ transactionDate: newDate })
+    .where(eq(animalTransactions.id, txId));
+
+  revalidatePath('/transactions');
+  revalidatePath('/animals');
 }
 
 export async function deleteAnimal(id: number) {
-  // Delete child records first (FK constraints)
   await db.delete(animalTransactions).where(eq(animalTransactions.animalId, id));
   await db.delete(births).where(eq(births.motherId, id));
   await db.delete(inseminations).where(eq(inseminations.animalId, id));

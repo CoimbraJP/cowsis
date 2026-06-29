@@ -1,8 +1,8 @@
 import { db } from '@/db';
 import { animals, pastures } from '@/db/schema';
-import { eq, ilike, and, SQL } from 'drizzle-orm';
+import { eq, ilike, and, asc, desc, SQL } from 'drizzle-orm';
 import Link from 'next/link';
-import { Beef, Plus, Search } from 'lucide-react';
+import { Beef, Plus, Search, ArrowUpDown } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,21 +29,57 @@ const STATUS_LABELS: Record<string, string> = {
   DEAD:   'Morto',
 };
 
+// Sort helper: builds a URL with the new sort param, preserving other params
+function sortLink(
+  current: Record<string, string>,
+  sortKey: string,
+  currentSort: string,
+): string {
+  const params = new URLSearchParams(
+    Object.entries(current).filter(([, v]) => v)
+  );
+  // Toggle direction if same key
+  if (currentSort === sortKey) {
+    params.set('sort', `${sortKey}_desc`);
+  } else if (currentSort === `${sortKey}_desc`) {
+    params.set('sort', sortKey);
+  } else {
+    params.set('sort', sortKey);
+  }
+  return `/animals?${params.toString()}`;
+}
+
+function sortIcon(currentSort: string, key: string) {
+  if (currentSort === key) return ' ↑';
+  if (currentSort === `${key}_desc`) return ' ↓';
+  return '';
+}
+
 export default async function AnimalsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; category?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; category?: string; sort?: string }>;
 }) {
   const sp = await searchParams;
-  const query    = sp.q?.trim() || '';
+  const query          = sp.q?.trim() || '';
   const statusFilter   = sp.status || '';
   const categoryFilter = sp.category || '';
+  const sortParam      = sp.sort || 'tag';   // default: brinco 0→9
 
-  // Build conditions dynamically
+  // Build WHERE conditions
   const conditions: SQL[] = [];
   if (query)          conditions.push(ilike(animals.tagNumber, `%${query}%`));
   if (statusFilter)   conditions.push(eq(animals.status, statusFilter as any));
   if (categoryFilter) conditions.push(eq(animals.category, categoryFilter as any));
+
+  // Build ORDER BY
+  let orderBy: SQL;
+  switch (sortParam) {
+    case 'tag_desc':    orderBy = desc(animals.tagNumber);  break;
+    case 'pasture':     orderBy = asc(pastures.name);       break;
+    case 'pasture_desc':orderBy = desc(pastures.name);      break;
+    default:            orderBy = asc(animals.tagNumber);   break; // 'tag' or unknown
+  }
 
   const allAnimals = await db
     .select({
@@ -57,11 +93,17 @@ export default async function AnimalsPage({
     .from(animals)
     .leftJoin(pastures, eq(animals.currentPastureId, pastures.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(animals.tagNumber);
+    .orderBy(orderBy);
 
   const totalActive = allAnimals.filter(a => a.status === 'ACTIVE').length;
   const totalSold   = allAnimals.filter(a => a.status === 'SOLD').length;
   const totalDead   = allAnimals.filter(a => a.status === 'DEAD').length;
+
+  // Params for sort links (excluding 'sort' itself)
+  const baseParams: Record<string, string> = {};
+  if (query)          baseParams.q = query;
+  if (statusFilter)   baseParams.status = statusFilter;
+  if (categoryFilter) baseParams.category = categoryFilter;
 
   return (
     <div className="space-y-6">
@@ -92,6 +134,8 @@ export default async function AnimalsPage({
 
       {/* Filters */}
       <form method="GET" className="flex flex-wrap gap-3">
+        {/* Keep sort param when filtering */}
+        {sortParam && <input type="hidden" name="sort" value={sortParam} />}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
           <input
@@ -144,9 +188,29 @@ export default async function AnimalsPage({
         <table className="w-full text-sm">
           <thead className="bg-zinc-900 text-zinc-400 uppercase text-xs tracking-wider">
             <tr>
-              <th className="px-4 py-3 text-left">Brinco</th>
+              {/* Sortable: Brinco */}
+              <th className="px-4 py-3 text-left">
+                <Link
+                  href={sortLink(baseParams, 'tag', sortParam)}
+                  className="flex items-center gap-1 hover:text-white transition-colors group"
+                >
+                  Brinco
+                  <ArrowUpDown size={12} className="opacity-50 group-hover:opacity-100" />
+                  <span className="text-emerald-400">{sortIcon(sortParam, 'tag')}</span>
+                </Link>
+              </th>
               <th className="px-4 py-3 text-left">Categoria</th>
-              <th className="px-4 py-3 text-left">Pasto</th>
+              {/* Sortable: Pasto */}
+              <th className="px-4 py-3 text-left">
+                <Link
+                  href={sortLink(baseParams, 'pasture', sortParam)}
+                  className="flex items-center gap-1 hover:text-white transition-colors group"
+                >
+                  Pasto
+                  <ArrowUpDown size={12} className="opacity-50 group-hover:opacity-100" />
+                  <span className="text-emerald-400">{sortIcon(sortParam, 'pasture')}</span>
+                </Link>
+              </th>
               <th className="px-4 py-3 text-left">Status</th>
               <th className="px-4 py-3 text-right">Ações</th>
             </tr>

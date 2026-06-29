@@ -1,5 +1,6 @@
+import React from 'react';
 import { db } from '@/db';
-import { animalTransactions, animals } from '@/db/schema';
+import { animalTransactions, animals, pastures } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { History } from 'lucide-react';
 import Link from 'next/link';
@@ -7,10 +8,12 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-  SALE:        { label: 'Venda',      color: 'bg-blue-500/10 text-blue-400',    icon: '💰' },
-  DEATH:       { label: 'Morte',      color: 'bg-red-900/20 text-red-400',      icon: '💀' },
-  BIRTH:       { label: 'Nascimento', color: 'bg-emerald-500/10 text-emerald-400', icon: '🐣' },
-  ACQUISITION: { label: 'Aquisição',  color: 'bg-purple-500/10 text-purple-400', icon: '📥' },
+  SALE:        { label: 'Venda',        color: 'bg-blue-500/10 text-blue-400',       icon: '💰' },
+  DEATH:       { label: 'Morte',        color: 'bg-red-900/20 text-red-400',          icon: '💀' },
+  BIRTH:       { label: 'Nascimento',   color: 'bg-emerald-500/10 text-emerald-400',  icon: '🐣' },
+  ACQUISITION: { label: 'Aquisição',    color: 'bg-purple-500/10 text-purple-400',    icon: '📥' },
+  TRANSFER:    { label: 'Transferência',color: 'bg-amber-500/10 text-amber-400',      icon: '🔄' },
+  VACCINE:     { label: 'Vacina',       color: 'bg-cyan-500/10 text-cyan-400',        icon: '💉' },
 };
 
 export default async function TransactionsPage({
@@ -22,6 +25,10 @@ export default async function TransactionsPage({
   const typeFilter = sp.type || '';
   const monthFilter = sp.month || '';
 
+  // Fetch all pastures for name lookup
+  const allPastures = await db.select().from(pastures);
+  const pastureNames = Object.fromEntries(allPastures.map(p => [p.id, p.name]));
+
   const txList = await db
     .select({
       id: animalTransactions.id,
@@ -30,6 +37,8 @@ export default async function TransactionsPage({
       monthLabel: animalTransactions.monthLabel,
       notes: animalTransactions.notes,
       animalId: animalTransactions.animalId,
+      fromPastureId: animalTransactions.fromPastureId,
+      toPastureId: animalTransactions.toPastureId,
       tagNumber: animals.tagNumber,
       category: animals.category,
     })
@@ -44,10 +53,12 @@ export default async function TransactionsPage({
   });
 
   const counts = {
-    SALE: txList.filter(t => t.type === 'SALE').length,
-    DEATH: txList.filter(t => t.type === 'DEATH').length,
-    BIRTH: txList.filter(t => t.type === 'BIRTH').length,
+    SALE:        txList.filter(t => t.type === 'SALE').length,
+    DEATH:       txList.filter(t => t.type === 'DEATH').length,
+    BIRTH:       txList.filter(t => t.type === 'BIRTH').length,
     ACQUISITION: txList.filter(t => t.type === 'ACQUISITION').length,
+    TRANSFER:    txList.filter(t => t.type === 'TRANSFER').length,
+    VACCINE:     txList.filter(t => t.type === 'VACCINE').length,
   };
 
   return (
@@ -61,7 +72,7 @@ export default async function TransactionsPage({
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {Object.entries(counts).map(([type, count]) => {
           const cfg = TYPE_CONFIG[type];
           return (
@@ -85,6 +96,8 @@ export default async function TransactionsPage({
           <option value="DEATH">Morte</option>
           <option value="BIRTH">Nascimento</option>
           <option value="ACQUISITION">Aquisição</option>
+          <option value="TRANSFER">Transferência</option>
+          <option value="VACCINE">Vacina</option>
         </select>
         <input
           name="month"
@@ -112,21 +125,37 @@ export default async function TransactionsPage({
             <tr>
               <th className="px-4 py-3 text-left">Tipo</th>
               <th className="px-4 py-3 text-left">Animal</th>
-              <th className="px-4 py-3 text-left">Categoria</th>
-              <th className="px-4 py-3 text-left">Período</th>
-              <th className="px-4 py-3 text-left">Observações</th>
+              <th className="px-4 py-3 text-left">Descrição</th>
+              <th className="px-4 py-3 text-left">Data</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-zinc-500">
+                <td colSpan={4} className="px-4 py-12 text-center text-zinc-500">
                   Nenhuma movimentação encontrada.
                 </td>
               </tr>
             )}
             {filtered.map((tx) => {
               const cfg = TYPE_CONFIG[tx.type] ?? { label: tx.type, color: 'bg-zinc-700 text-zinc-300', icon: '•' };
+
+              // Build description based on type
+              let description: React.ReactNode = tx.notes ?? '—';
+              if (tx.type === 'TRANSFER') {
+                const from = tx.fromPastureId ? pastureNames[tx.fromPastureId] ?? `Pasto #${tx.fromPastureId}` : '—';
+                const to   = tx.toPastureId   ? pastureNames[tx.toPastureId]   ?? `Pasto #${tx.toPastureId}`   : '—';
+                description = (
+                  <span>
+                    <span className="text-zinc-400">{from}</span>
+                    <span className="text-zinc-600 mx-2">→</span>
+                    <span className="text-emerald-400">{to}</span>
+                  </span>
+                );
+              } else if (tx.type === 'VACCINE') {
+                description = <span className="text-cyan-300">{tx.notes}</span>;
+              }
+
               return (
                 <tr key={tx.id} className="hover:bg-zinc-800/50 transition-colors">
                   <td className="px-4 py-3">
@@ -142,10 +171,12 @@ export default async function TransactionsPage({
                     ) : (
                       <span className="text-zinc-500 italic">sem brinco</span>
                     )}
+                    {tx.category && (
+                      <span className="text-zinc-500 font-sans font-normal text-xs ml-2">({tx.category})</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-zinc-400">{tx.category ?? '—'}</td>
-                  <td className="px-4 py-3 text-zinc-400">{tx.monthLabel ?? tx.transactionDate ?? '—'}</td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs max-w-xs truncate">{tx.notes ?? '—'}</td>
+                  <td className="px-4 py-3 text-zinc-400 max-w-xs">{description}</td>
+                  <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{tx.transactionDate ?? tx.monthLabel ?? '—'}</td>
                 </tr>
               );
             })}
