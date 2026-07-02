@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { LayoutDashboard, Trees, Beef, History } from "lucide-react";
+import { LayoutDashboard, Trees, Beef, History, Syringe, BarChart3, GitCompare } from "lucide-react";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -43,6 +43,19 @@ export default function RootLayout({
             <Link href="/transactions" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
               <History size={20} />
               <span>Movimentações</span>
+            </Link>
+            <Link href="/inseminations" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
+              <Syringe size={20} />
+              <span>Inseminações</span>
+            </Link>
+            <div className="pt-2 pb-1 px-3 text-xs text-zinc-600 uppercase tracking-wider">Relatórios</div>
+            <Link href="/pastures/historico" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
+              <BarChart3 size={20} />
+              <span>Histórico</span>
+            </Link>
+            <Link href="/pastures/comparar" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
+              <GitCompare size={20} />
+              <span>Comparar Pastos</span>
             </Link>
           </nav>
         </aside>

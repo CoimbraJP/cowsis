@@ -51,7 +51,8 @@ export const inseminations = pgTable('inseminations', {
   animalId: integer('animal_id').references(() => animals.id).notNull(),
   inseminationDate: date('insemination_date'),
   bullSemen: varchar('bull_semen', { length: 255 }),
-  status: insemStatusEnum('status'),
+  status: insemStatusEnum('status').default('PENDING'),
+  paid: boolean('paid').default(false).notNull(),
   outcome: varchar('outcome', { length: 255 }),
   observations: text('observations'),
 });
@@ -63,15 +64,27 @@ export const animalTransactions = pgTable('animal_transactions', {
   transactionDate: date('transaction_date'),
   monthLabel: varchar('month_label', { length: 50 }),
   notes: text('notes'),
-  // For TRANSFER: which pasture the animal came from and went to
   fromPastureId: integer('from_pasture_id').references(() => pastures.id),
   toPastureId:   integer('to_pasture_id').references(() => pastures.id),
 });
 
-// Relations
+// ── NEW: pasture_history ─────────────────────────────────────────────────────
+// Log de onde cada animal esteve, com data de entrada e saída.
+// exitedAt = NULL significa que o animal ainda está neste pasto.
+// Permite reconstruir a composição de qualquer pasto em qualquer data.
+export const pastureHistory = pgTable('pasture_history', {
+  id: serial('id').primaryKey(),
+  animalId: integer('animal_id').references(() => animals.id).notNull(),
+  pastureId: integer('pasture_id').references(() => pastures.id),
+  enteredAt: date('entered_at').notNull(),
+  exitedAt:  date('exited_at'),
+});
+
+// ── Relations ────────────────────────────────────────────────────────────────
 export const pasturesRelations = relations(pastures, ({ many }) => ({
   animals: many(animals),
   inventories: many(pastureInventories),
+  history: many(pastureHistory),
 }));
 
 export const animalsRelations = relations(animals, ({ one, many }) => ({
@@ -83,6 +96,7 @@ export const animalsRelations = relations(animals, ({ one, many }) => ({
   inseminations: many(inseminations),
   transactions: many(animalTransactions),
   inventoryItems: many(pastureInventoryItems),
+  pastureHistory: many(pastureHistory),
 }));
 
 export const pastureInventoriesRelations = relations(pastureInventories, ({ one, many }) => ({
@@ -132,5 +146,16 @@ export const animalTransactionsRelations = relations(animalTransactions, ({ one 
     fields: [animalTransactions.toPastureId],
     references: [pastures.id],
     relationName: 'toPasture',
+  }),
+}));
+
+export const pastureHistoryRelations = relations(pastureHistory, ({ one }) => ({
+  animal: one(animals, {
+    fields: [pastureHistory.animalId],
+    references: [animals.id],
+  }),
+  pasture: one(pastures, {
+    fields: [pastureHistory.pastureId],
+    references: [pastures.id],
   }),
 }));

@@ -1,7 +1,7 @@
 import { db } from '@/db';
 import { animals, pastures, births, inseminations, animalTransactions } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { updateAnimal, deleteAnimal, addVaccine, updateTransactionDate } from '../actions';
+import { updateAnimal, deleteAnimal, addVaccine, updateTransactionDate, addInsemination } from '../actions';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -244,27 +244,61 @@ export default async function AnimalDetailPage({
       </div>
 
       {/* Inseminations */}
-      {insemRecords.length > 0 && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-3">
-          <h3 className="text-lg font-semibold text-white">🧬 Inseminações ({insemRecords.length})</h3>
-          {insemRecords.map((ins) => (
-            <div key={ins.id} className="flex items-center justify-between text-sm py-2 border-b border-zinc-800 last:border-0">
-              <div className="flex flex-wrap gap-2 text-zinc-400">
-                <span>{ins.inseminationDate ?? '—'}</span>
-                {ins.bullSemen && <span className="text-zinc-500">• {ins.bullSemen}</span>}
-                {ins.observations && <span className="text-zinc-500 italic">• {ins.observations}</span>}
-              </div>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
-                ins.status === 'CONFIRMED' ? 'bg-emerald-500/10 text-emerald-400' :
-                ins.status === 'FAILED'    ? 'bg-red-500/10 text-red-400' :
-                                             'bg-zinc-500/10 text-zinc-400'
-              }`}>
-                {ins.status === 'CONFIRMED' ? 'Confirmada' : ins.status === 'FAILED' ? 'Falhou' : 'Pendente'}
-              </span>
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-4">
+        <h3 className="text-lg font-semibold text-white">🧬 Inseminações ({insemRecords.length})</h3>
+
+        {/* Add insemination form */}
+        <form action={async (fd: FormData) => {
+          'use server';
+          fd.set('animalId', String(animalId));
+          await addInsemination(fd);
+          redirect(`/animals/${animalId}`);
+        }} className="flex flex-wrap gap-2 items-end border-b border-zinc-800 pb-4">
+          <div className="space-y-1 flex-1 min-w-[120px]">
+            <label className="text-xs text-zinc-400">Data</label>
+            <input type="date" name="inseminationDate" defaultValue={today}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-purple-500 text-sm" />
+          </div>
+          <div className="space-y-1 flex-1 min-w-[120px]">
+            <label className="text-xs text-zinc-400">Touro / Sêmen</label>
+            <input type="text" name="bullSemen" placeholder="Ex: Nelore 300"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 text-sm" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-zinc-400">Status</label>
+            <select name="status"
+              className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-purple-500 text-sm">
+              <option value="PENDING">Aguardando</option>
+              <option value="CONFIRMED">Prenha</option>
+              <option value="FAILED">Vazia</option>
+            </select>
+          </div>
+          <button type="submit"
+            className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-colors">
+            Registrar
+          </button>
+        </form>
+
+        {insemRecords.length === 0 && (
+          <p className="text-zinc-500 text-sm">Nenhuma inseminação registrada ainda.</p>
+        )}
+        {insemRecords.map((ins) => (
+          <div key={ins.id} className="flex items-center justify-between text-sm py-2 border-b border-zinc-800 last:border-0">
+            <div className="flex flex-wrap gap-2 text-zinc-400">
+              <span>{ins.inseminationDate ?? '—'}</span>
+              {ins.bullSemen && <span className="text-zinc-500">• {ins.bullSemen}</span>}
+              {ins.observations && <span className="text-zinc-500 italic">• {ins.observations}</span>}
             </div>
-          ))}
-        </div>
-      )}
+            <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
+              ins.status === 'CONFIRMED' ? 'bg-emerald-500/10 text-emerald-400' :
+              ins.status === 'FAILED'    ? 'bg-red-500/10 text-red-400' :
+                                           'bg-amber-500/10 text-amber-400'
+            }`}>
+              {ins.status === 'CONFIRMED' ? 'Prenha' : ins.status === 'FAILED' ? 'Vazia' : 'Aguardando'}
+            </span>
+          </div>
+        ))}
+      </div>
 
       {/* Births */}
       {birthRecords.length > 0 && (
