@@ -18,7 +18,6 @@ export async function createAnimal(formData: FormData) {
     currentPastureId: pastureId,
   }).returning({ id: animals.id });
 
-  // Start pasture history entry if a pasture was chosen
   if (pastureId && created) {
     const today = new Date().toISOString().split('T')[0];
     await db.insert(pastureHistory).values({
@@ -38,6 +37,8 @@ export async function updateAnimal(id: number, formData: FormData) {
   const category = formData.get('category') as string;
   const status = formData.get('status') as string;
   const currentPastureId = formData.get('currentPastureId') as string | null;
+  const weightStr = formData.get('weight') as string | null;
+  const healthNotes = (formData.get('healthNotes') as string)?.trim() || null;
 
   await db.update(animals)
     .set({
@@ -45,6 +46,8 @@ export async function updateAnimal(id: number, formData: FormData) {
       category: category as any,
       status: status as any,
       currentPastureId: currentPastureId ? Number(currentPastureId) : null,
+      weight: weightStr ? Number(weightStr) : null,
+      healthNotes,
     })
     .where(eq(animals.id, id));
 
@@ -62,12 +65,10 @@ export async function moveAnimalToPasture(
   const today = new Date().toISOString().split('T')[0];
   const effectiveDate = moveDate || today;
 
-  // 1. Update animal's current pasture
   await db.update(animals)
     .set({ currentPastureId: toPastureId })
     .where(eq(animals.id, animalId));
 
-  // 2. Record TRANSFER transaction (existing log)
   await db.insert(animalTransactions).values({
     animalId,
     type: 'TRANSFER',
@@ -78,7 +79,6 @@ export async function moveAnimalToPasture(
     monthLabel: null,
   });
 
-  // 3. Close open pasture_history entries for this animal (only null exitedAt)
   await db.update(pastureHistory)
     .set({ exitedAt: effectiveDate })
     .where(and(
@@ -86,7 +86,6 @@ export async function moveAnimalToPasture(
       isNull(pastureHistory.exitedAt),
     ));
 
-  // 4. Open new pasture_history entry if moving to a pasture
   if (toPastureId) {
     await db.insert(pastureHistory).values({
       animalId,

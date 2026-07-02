@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, boolean, integer, date, text, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, boolean, integer, date, text, pgEnum, real } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Enums
@@ -21,6 +21,8 @@ export const animals = pgTable('animals', {
   category: animalCategoryEnum('category').notNull(),
   status: animalStatusEnum('status').default('ACTIVE').notNull(),
   currentPastureId: integer('current_pasture_id').references(() => pastures.id),
+  weight: real('weight'),
+  healthNotes: text('health_notes'),
 });
 
 export const pastureInventories = pgTable('pasture_inventories', {
@@ -64,14 +66,11 @@ export const animalTransactions = pgTable('animal_transactions', {
   transactionDate: date('transaction_date'),
   monthLabel: varchar('month_label', { length: 50 }),
   notes: text('notes'),
+  amount: real('amount'),
   fromPastureId: integer('from_pasture_id').references(() => pastures.id),
   toPastureId:   integer('to_pasture_id').references(() => pastures.id),
 });
 
-// ── NEW: pasture_history ─────────────────────────────────────────────────────
-// Log de onde cada animal esteve, com data de entrada e saída.
-// exitedAt = NULL significa que o animal ainda está neste pasto.
-// Permite reconstruir a composição de qualquer pasto em qualquer data.
 export const pastureHistory = pgTable('pasture_history', {
   id: serial('id').primaryKey(),
   animalId: integer('animal_id').references(() => animals.id).notNull(),
@@ -80,7 +79,7 @@ export const pastureHistory = pgTable('pasture_history', {
   exitedAt:  date('exited_at'),
 });
 
-// ── Relations ────────────────────────────────────────────────────────────────
+// Relations
 export const pasturesRelations = relations(pastures, ({ many }) => ({
   animals: many(animals),
   inventories: many(pastureInventories),

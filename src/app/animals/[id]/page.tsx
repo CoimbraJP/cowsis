@@ -25,6 +25,8 @@ export default async function AnimalDetailPage({
       status: animals.status,
       currentPastureId: animals.currentPastureId,
       pastureName: pastures.name,
+      weight: animals.weight,
+      healthNotes: animals.healthNotes,
     })
     .from(animals)
     .leftJoin(pastures, eq(animals.currentPastureId, pastures.id))
@@ -37,7 +39,6 @@ export default async function AnimalDetailPage({
   const birthRecords = await db.select().from(births).where(eq(births.motherId, animalId));
   const insemRecords = await db.select().from(inseminations).where(eq(inseminations.animalId, animalId));
 
-  // All transactions ordered newest first
   const txRecords = await db
     .select({
       id: animalTransactions.id,
@@ -52,7 +53,6 @@ export default async function AnimalDetailPage({
     .where(eq(animalTransactions.animalId, animalId))
     .orderBy(desc(animalTransactions.id));
 
-  // Build pasture name lookup
   const pastureNames = Object.fromEntries(allPastures.map(p => [p.id, p.name]));
 
   const transfers = txRecords.filter(t => t.type === 'TRANSFER');
@@ -95,12 +95,8 @@ export default async function AnimalDetailPage({
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-sm text-zinc-400">Brinco</label>
-            <input
-              name="tagNumber"
-              defaultValue={animal.tagNumber ?? ''}
-              placeholder="Número do brinco"
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
-            />
+            <input name="tagNumber" defaultValue={animal.tagNumber ?? ''} placeholder="Número do brinco"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500" />
           </div>
           <div className="space-y-1">
             <label className="text-sm text-zinc-400">Status</label>
@@ -133,6 +129,18 @@ export default async function AnimalDetailPage({
               {allPastures.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
+          <div className="space-y-1">
+            <label className="text-sm text-zinc-400">Peso (kg)</label>
+            <input type="number" name="weight" step="0.1" defaultValue={animal.weight ?? ''}
+              placeholder="Ex: 450.5"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500" />
+          </div>
+          <div className="col-span-2 space-y-1">
+            <label className="text-sm text-zinc-400">Observações de saúde</label>
+            <input name="healthNotes" defaultValue={animal.healthNotes ?? ''}
+              placeholder="Ex: vermifugado em jun/26, sem ocorrências"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500" />
+          </div>
         </div>
         <button type="submit"
           className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-2 rounded-lg font-medium transition-colors">
@@ -148,16 +156,12 @@ export default async function AnimalDetailPage({
         )}
         <div className="space-y-2">
           {transfers.map((tx) => (
-            <form
-              key={tx.id}
-              action={async (fd: FormData) => {
-                'use server';
-                const d = fd.get('date') as string;
-                if (d) await updateTransactionDate(tx.id, d);
-                redirect(`/animals/${animalId}`);
-              }}
-              className="flex items-center gap-3 py-2 border-b border-zinc-800 last:border-0"
-            >
+            <form key={tx.id} action={async (fd: FormData) => {
+              'use server';
+              const d = fd.get('date') as string;
+              if (d) await updateTransactionDate(tx.id, d);
+              redirect(`/animals/${animalId}`);
+            }} className="flex items-center gap-3 py-2 border-b border-zinc-800 last:border-0">
               <div className="flex-1 text-sm text-zinc-300">
                 <span className="font-medium text-white">
                   {tx.fromPastureId ? pastureNames[tx.fromPastureId] ?? `Pasto #${tx.fromPastureId}` : '—'}
@@ -167,12 +171,8 @@ export default async function AnimalDetailPage({
                   {tx.toPastureId ? pastureNames[tx.toPastureId] ?? `Pasto #${tx.toPastureId}` : '—'}
                 </span>
               </div>
-              <input
-                type="date"
-                name="date"
-                defaultValue={tx.transactionDate ?? today}
-                className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500"
-              />
+              <input type="date" name="date" defaultValue={tx.transactionDate ?? today}
+                className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500" />
               <button type="submit"
                 className="px-2 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 text-white rounded transition-colors">
                 Salvar data
@@ -185,54 +185,35 @@ export default async function AnimalDetailPage({
       {/* Vaccines */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-4">
         <h3 className="text-lg font-semibold text-white">💉 Vacinas ({vaccines.length})</h3>
-
-        {/* Add vaccine form */}
         <form action={addVaccine} className="flex flex-wrap gap-2 items-end">
           <input type="hidden" name="animalId" value={animalId} />
           <div className="space-y-1 flex-1 min-w-[150px]">
             <label className="text-xs text-zinc-400">Nome da vacina</label>
-            <input
-              name="vaccineName"
-              required
-              placeholder="Ex: Aftosa, Brucelose..."
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 text-sm"
-            />
+            <input name="vaccineName" required placeholder="Ex: Aftosa, Brucelose..."
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 text-sm" />
           </div>
           <div className="space-y-1">
             <label className="text-xs text-zinc-400">Data</label>
-            <input
-              type="date"
-              name="vaccineDate"
-              defaultValue={today}
-              className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500 text-sm"
-            />
+            <input type="date" name="vaccineDate" defaultValue={today}
+              className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500 text-sm" />
           </div>
           <button type="submit"
             className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors">
             Registrar
           </button>
         </form>
-
         {vaccines.length > 0 && (
           <div className="space-y-2">
             {vaccines.map((tx) => (
-              <form
-                key={tx.id}
-                action={async (fd: FormData) => {
-                  'use server';
-                  const d = fd.get('date') as string;
-                  if (d) await updateTransactionDate(tx.id, d);
-                  redirect(`/animals/${animalId}`);
-                }}
-                className="flex items-center gap-3 py-2 border-b border-zinc-800 last:border-0"
-              >
+              <form key={tx.id} action={async (fd: FormData) => {
+                'use server';
+                const d = fd.get('date') as string;
+                if (d) await updateTransactionDate(tx.id, d);
+                redirect(`/animals/${animalId}`);
+              }} className="flex items-center gap-3 py-2 border-b border-zinc-800 last:border-0">
                 <span className="flex-1 text-sm text-zinc-300">{tx.notes}</span>
-                <input
-                  type="date"
-                  name="date"
-                  defaultValue={tx.transactionDate ?? today}
-                  className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500"
-                />
+                <input type="date" name="date" defaultValue={tx.transactionDate ?? today}
+                  className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500" />
                 <button type="submit"
                   className="px-2 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 text-white rounded transition-colors">
                   Salvar data
@@ -246,8 +227,6 @@ export default async function AnimalDetailPage({
       {/* Inseminations */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-4">
         <h3 className="text-lg font-semibold text-white">🧬 Inseminações ({insemRecords.length})</h3>
-
-        {/* Add insemination form */}
         <form action={async (fd: FormData) => {
           'use server';
           fd.set('animalId', String(animalId));
@@ -278,7 +257,6 @@ export default async function AnimalDetailPage({
             Registrar
           </button>
         </form>
-
         {insemRecords.length === 0 && (
           <p className="text-zinc-500 text-sm">Nenhuma inseminação registrada ainda.</p>
         )}

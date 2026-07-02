@@ -14,7 +14,6 @@ const STATUS_CONFIG = {
   FAILED:    { label: 'Vazia',      color: 'bg-red-500/10 text-red-400' },
 };
 
-// Generate month options for the last 24 months
 function getMonthOptions() {
   const opts: { value: string; label: string }[] = [];
   const now = new Date();
@@ -33,7 +32,7 @@ export default async function InsemsPage({
   searchParams: Promise<{ month?: string; status?: string }>;
 }) {
   const sp = await searchParams;
-  const monthFilter = sp.month || '';
+  const monthFilter  = sp.month  || '';
   const statusFilter = sp.status || '';
 
   const allAnimals = await db
@@ -43,14 +42,9 @@ export default async function InsemsPage({
     .where(eq(animals.status, 'ACTIVE'))
     .orderBy(animals.tagNumber);
 
-  // Build conditions
   const conditions = [];
-  if (monthFilter) {
-    conditions.push(sql`to_char(${inseminations.inseminationDate}, 'YYYY-MM') = ${monthFilter}`);
-  }
-  if (statusFilter) {
-    conditions.push(eq(inseminations.status, statusFilter as any));
-  }
+  if (monthFilter)  conditions.push(sql`to_char(${inseminations.inseminationDate}, 'YYYY-MM') = ${monthFilter}`);
+  if (statusFilter) conditions.push(eq(inseminations.status, statusFilter as any));
 
   const rows = await db
     .select({
@@ -71,12 +65,17 @@ export default async function InsemsPage({
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(inseminations.inseminationDate));
 
+  const nConfirmed = rows.filter(r => r.status === 'CONFIRMED').length;
+  const nFailed    = rows.filter(r => r.status === 'FAILED').length;
+  const nDecided   = nConfirmed + nFailed;
+  const prenhez    = nDecided > 0 ? Math.round((nConfirmed / nDecided) * 100) : null;
+
   const counts = {
-    total: rows.length,
-    PENDING: rows.filter(r => r.status === 'PENDING').length,
-    CONFIRMED: rows.filter(r => r.status === 'CONFIRMED').length,
-    FAILED: rows.filter(r => r.status === 'FAILED').length,
-    paid: rows.filter(r => r.paid).length,
+    total:     rows.length,
+    PENDING:   rows.filter(r => r.status === 'PENDING').length,
+    CONFIRMED: nConfirmed,
+    FAILED:    nFailed,
+    paid:      rows.filter(r => r.paid).length,
   };
 
   const monthOpts = getMonthOptions();
@@ -95,7 +94,7 @@ export default async function InsemsPage({
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
           <p className="text-xs text-zinc-500 uppercase tracking-wider">Total</p>
           <p className="text-2xl font-bold text-white mt-1">{counts.total}</p>
@@ -111,6 +110,13 @@ export default async function InsemsPage({
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
           <p className="text-xs text-red-400 uppercase tracking-wider">Vazias</p>
           <p className="text-2xl font-bold text-white mt-1">{counts.FAILED}</p>
+        </div>
+        <div className="rounded-xl border border-purple-900/30 bg-purple-900/10 p-4">
+          <p className="text-xs text-purple-400 uppercase tracking-wider">Taxa de Prenhez</p>
+          <p className="text-2xl font-bold text-white mt-1">{prenhez !== null ? `${prenhez}%` : '—'}</p>
+          {nDecided > 0 && (
+            <p className="text-xs text-zinc-500 mt-1">{nConfirmed}/{nDecided} com resultado</p>
+          )}
         </div>
       </div>
 
@@ -160,8 +166,7 @@ export default async function InsemsPage({
             <div className="space-y-1 flex items-end">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="hidden" name="paid" value="false" />
-                <input type="checkbox" name="paid" value="true"
-                  className="w-4 h-4 accent-purple-500" />
+                <input type="checkbox" name="paid" value="true" className="w-4 h-4 accent-purple-500" />
                 <span className="text-sm text-zinc-400">Serviço pago</span>
               </label>
             </div>
@@ -243,7 +248,6 @@ export default async function InsemsPage({
                       <input type="hidden" name="paid" value={String(r.paid)} />
                       <input type="hidden" name="observations" value={r.observations ?? ''} />
                       <select name="status" defaultValue={r.status ?? 'PENDING'}
-                        onChange={() => {}}
                         className={`px-2 py-0.5 rounded text-xs font-medium border-0 focus:outline-none cursor-pointer ${cfg.color} bg-transparent`}>
                         <option value="PENDING">Aguardando</option>
                         <option value="CONFIRMED">Prenha</option>

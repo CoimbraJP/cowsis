@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { LayoutDashboard, Trees, Beef, History, Syringe, BarChart3, GitCompare } from "lucide-react";
+import { LayoutDashboard, Trees, Beef, History, Syringe, BarChart3, GitCompare, CalendarDays, FileText } from "lucide-react";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,7 +19,6 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark">
       <body className={`${inter.className} bg-zinc-950 text-zinc-50 min-h-screen flex flex-col md:flex-row`}>
-        {/* Sidebar */}
         <aside className="w-full md:w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col md:min-h-screen">
           <div className="p-6">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
@@ -27,40 +26,37 @@ export default function RootLayout({
             </h1>
             <p className="text-sm text-zinc-400 mt-1">Gestão Inteligente</p>
           </div>
-          <nav className="flex-1 px-4 space-y-2">
+          <nav className="flex-1 px-4 space-y-1 pb-6">
             <Link href="/" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <LayoutDashboard size={20} />
-              <span>Dashboard</span>
+              <LayoutDashboard size={20} /><span>Dashboard</span>
             </Link>
             <Link href="/pastures" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <Trees size={20} />
-              <span>Pastos</span>
+              <Trees size={20} /><span>Pastos</span>
             </Link>
             <Link href="/animals" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <Beef size={20} />
-              <span>Animais</span>
+              <Beef size={20} /><span>Animais</span>
             </Link>
             <Link href="/transactions" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <History size={20} />
-              <span>Movimentações</span>
+              <History size={20} /><span>Movimentações</span>
             </Link>
             <Link href="/inseminations" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <Syringe size={20} />
-              <span>Inseminações</span>
+              <Syringe size={20} /><span>Inseminações</span>
             </Link>
-            <div className="pt-2 pb-1 px-3 text-xs text-zinc-600 uppercase tracking-wider">Relatórios</div>
+            <div className="pt-3 pb-1 px-3 text-xs text-zinc-600 uppercase tracking-wider">Relatórios</div>
+            <Link href="/relatorio" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
+              <FileText size={20} /><span>Relatório PDF</span>
+            </Link>
+            <Link href="/analise" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
+              <CalendarDays size={20} /><span>Análise por Data</span>
+            </Link>
             <Link href="/pastures/historico" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <BarChart3 size={20} />
-              <span>Histórico</span>
+              <BarChart3 size={20} /><span>Histórico</span>
             </Link>
             <Link href="/pastures/comparar" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <GitCompare size={20} />
-              <span>Comparar Pastos</span>
+              <GitCompare size={20} /><span>Comparar Pastos</span>
             </Link>
           </nav>
         </aside>
-
-        {/* Main Content */}
         <main className="flex-1 p-6 md:p-10 overflow-auto">
           {children}
         </main>
