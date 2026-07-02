@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Link from "next/link";
-import { LayoutDashboard, Trees, Beef, History, Syringe, BarChart3, GitCompare, CalendarDays, FileText } from "lucide-react";
+import { NavMenu } from "./nav-menu";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,47 +18,41 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark">
       <body className={`${inter.className} bg-zinc-950 text-zinc-50 min-h-screen flex flex-col md:flex-row`}>
-        <aside className="w-full md:w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col md:min-h-screen">
-          <div className="p-6">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              COWSIS
-            </h1>
-            <p className="text-sm text-zinc-400 mt-1">Gestão Inteligente</p>
+
+        {/* Sidebar */}
+        <aside className="w-full md:w-60 shrink-0 bg-zinc-900 border-r border-zinc-800/60 flex flex-col md:min-h-screen">
+
+          {/* Brand */}
+          <div className="px-5 py-6 border-b border-zinc-800/60">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-[0_0_16px_rgba(52,211,153,0.30)] shrink-0">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M2 10 C2 6 4 3 7 3 C10 3 12 6 12 10" stroke="#0a0a0a" strokeWidth="2.2" strokeLinecap="round"/>
+                  <circle cx="7" cy="11" r="1.5" fill="#0a0a0a"/>
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-sm font-bold text-white tracking-tight leading-none">COWSIS</h1>
+                <p className="text-[10px] text-zinc-500 mt-0.5 leading-none">Gestão Inteligente</p>
+              </div>
+            </div>
           </div>
-          <nav className="flex-1 px-4 space-y-1 pb-6">
-            <Link href="/" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <LayoutDashboard size={20} /><span>Dashboard</span>
-            </Link>
-            <Link href="/pastures" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <Trees size={20} /><span>Pastos</span>
-            </Link>
-            <Link href="/animals" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <Beef size={20} /><span>Animais</span>
-            </Link>
-            <Link href="/transactions" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <History size={20} /><span>Movimentações</span>
-            </Link>
-            <Link href="/inseminations" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <Syringe size={20} /><span>Inseminações</span>
-            </Link>
-            <div className="pt-3 pb-1 px-3 text-xs text-zinc-600 uppercase tracking-wider">Relatórios</div>
-            <Link href="/relatorio" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <FileText size={20} /><span>Relatório PDF</span>
-            </Link>
-            <Link href="/analise" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <CalendarDays size={20} /><span>Análise por Data</span>
-            </Link>
-            <Link href="/pastures/historico" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <BarChart3 size={20} /><span>Histórico</span>
-            </Link>
-            <Link href="/pastures/comparar" className="flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
-              <GitCompare size={20} /><span>Comparar Pastos</span>
-            </Link>
-          </nav>
+
+          <NavMenu />
+
+          {/* Footer */}
+          <div className="px-5 py-4 border-t border-zinc-800/60 mt-auto">
+            <p className="text-[10px] text-zinc-700 leading-relaxed">
+              Sistema de gestão de rebanho bovino
+            </p>
+          </div>
         </aside>
-        <main className="flex-1 p-6 md:p-10 overflow-auto">
+
+        {/* Main content */}
+        <main className="flex-1 p-6 md:p-10 overflow-auto min-w-0">
           {children}
         </main>
+
       </body>
     </html>
   );
