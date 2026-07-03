@@ -3,7 +3,7 @@ import { pastures, animals } from "@/db/schema";
 import { sql, eq } from "drizzle-orm";
 import { Trees, Plus, Pencil, PowerOff } from "lucide-react";
 import Link from "next/link";
-import { createPasture, updatePasture, togglePastureActive } from "./actions";
+import { updatePasture, togglePastureActive } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +33,7 @@ export default async function PasturesPage({
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
@@ -40,28 +41,17 @@ export default async function PasturesPage({
             Pastos
           </h2>
           <p className="text-zinc-400 mt-1">
-            {activeCount} ativos · {inactiveCount > 0 ? `${inactiveCount} inativos · ` : ''}{totalAnimals} animais no total
+            {activeCount} ativos{inactiveCount > 0 ? ` · ${inactiveCount} inativos` : ''} · {totalAnimals} animais
           </p>
         </div>
+        <Link
+          href="/pastures/new"
+          className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all font-medium"
+        >
+          <Plus size={18} />
+          Novo Pasto
+        </Link>
       </div>
-
-      {/* Create pasture form */}
-      <details className="rounded-xl border border-zinc-800 bg-zinc-900/50">
-        <summary className="px-6 py-4 cursor-pointer text-white font-semibold hover:text-emerald-400 transition-colors flex items-center gap-2">
-          <Plus size={16} /> Novo pasto
-        </summary>
-        <form action={createPasture} className="px-6 pb-6 flex gap-3 items-end">
-          <div className="space-y-1 flex-1">
-            <label className="text-sm text-zinc-400">Nome do pasto *</label>
-            <input type="text" name="name" required placeholder="Ex: Pasto Norte, Retiro A..."
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500" />
-          </div>
-          <button type="submit"
-            className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors">
-            Criar
-          </button>
-        </form>
-      </details>
 
       {/* Pastures grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -83,9 +73,7 @@ export default async function PasturesPage({
                     className="px-3 py-1 text-xs bg-emerald-500 hover:bg-emerald-600 text-white rounded font-medium">
                     Salvar
                   </button>
-                  <Link href="/pastures" className="px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 text-white rounded">
-                    ✕
-                  </Link>
+                  <Link href="/pastures" className="px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 text-white rounded">✕</Link>
                 </form>
               ) : (
                 <Link href={`/pastures/${pasto.id}`}
@@ -104,8 +92,7 @@ export default async function PasturesPage({
             </div>
 
             <div className="flex items-center gap-2 pt-1 border-t border-zinc-800">
-              <Link href={`/pastures/${pasto.id}`}
-                className="text-xs text-zinc-400 hover:text-emerald-400 transition-colors">
+              <Link href={`/pastures/${pasto.id}`} className="text-xs text-zinc-400 hover:text-emerald-400 transition-colors">
                 Ver animais →
               </Link>
               <div className="flex-1" />
@@ -122,7 +109,7 @@ export default async function PasturesPage({
                     ? 'text-zinc-500 hover:text-red-400 hover:bg-red-900/20'
                     : 'text-zinc-500 hover:text-emerald-400 hover:bg-emerald-900/20'
                   }`}
-                  title={pasto.active ? 'Desativar pasto' : 'Reativar pasto'}>
+                  title={pasto.active ? 'Desativar' : 'Reativar'}>
                   <PowerOff size={13} />
                 </button>
               </form>
@@ -133,6 +120,9 @@ export default async function PasturesPage({
         {pasturesList.length === 0 && (
           <div className="col-span-full py-12 text-center border border-dashed border-zinc-800 rounded-xl">
             <p className="text-zinc-400">Nenhum pasto cadastrado ainda.</p>
+            <Link href="/pastures/new" className="mt-3 inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 text-sm">
+              <Plus size={14} /> Criar primeiro pasto
+            </Link>
           </div>
         )}
       </div>

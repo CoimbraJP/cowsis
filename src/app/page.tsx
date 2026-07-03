@@ -24,10 +24,10 @@ function monthLabel(offset: number): string {
 const STATUS_COLOR: Record<string, string> = {
   PENDING:   "bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20",
   CONFIRMED: "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20",
-  FAILED:    "bg-red-500/10 text-red-400 ring-1 ring-red-500/20",
+  FAILED:    "bg-zinc-500/10 text-zinc-400 ring-1 ring-zinc-500/20",
 };
 const STATUS_LABEL: Record<string, string> = {
-  PENDING: "Aguardando", CONFIRMED: "Prenha", FAILED: "Vazia",
+  PENDING: "Aguardando", CONFIRMED: "Prenha", FAILED: "Pronto",
 };
 
 export default async function DashboardPage({
@@ -49,22 +49,10 @@ export default async function DashboardPage({
   let recentInseminations: any[] = [];
 
   try {
-    const [animalsResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(animals)
-      .where(eq(animals.status, "ACTIVE"));
-    const [vacasResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(animals)
-      .where(and(eq(animals.status, "ACTIVE"), eq(animals.category, "VACA")));
-    const [bezerrosResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(animals)
-      .where(sql`status = 'ACTIVE' AND (category = 'BEZERRO' OR category = 'BEZERRA')`);
-    const [pasturesResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pastures)
-      .where(eq(pastures.active, true));
+    const [animalsResult] = await db.select({ count: sql<number>`count(*)` }).from(animals).where(eq(animals.status, "ACTIVE"));
+    const [vacasResult] = await db.select({ count: sql<number>`count(*)` }).from(animals).where(and(eq(animals.status, "ACTIVE"), eq(animals.category, "VACA")));
+    const [bezerrosResult] = await db.select({ count: sql<number>`count(*)` }).from(animals).where(sql`status = 'ACTIVE' AND (category = 'BEZERRO' OR category = 'BEZERRA')`);
+    const [pasturesResult] = await db.select({ count: sql<number>`count(*)` }).from(pastures).where(eq(pastures.active, true));
 
     stats.totalAnimals   = Number(animalsResult?.count || 0);
     stats.totalVacas     = Number(vacasResult?.count || 0);
@@ -72,11 +60,7 @@ export default async function DashboardPage({
     stats.activePastures = Number(pasturesResult?.count || 0);
 
     topPastures = await db
-      .select({
-        id: pastures.id,
-        name: pastures.name,
-        animalCount: sql<number>`count(${animals.id})`,
-      })
+      .select({ id: pastures.id, name: pastures.name, animalCount: sql<number>`count(${animals.id})` })
       .from(pastures)
       .leftJoin(animals, and(eq(pastures.id, animals.currentPastureId), eq(animals.status, "ACTIVE")))
       .groupBy(pastures.id)
@@ -84,63 +68,30 @@ export default async function DashboardPage({
       .limit(6);
 
     overdueInseminations = await db
-      .select({
-        id: inseminations.id,
-        inseminationDate: inseminations.inseminationDate,
-        bullSemen: inseminations.bullSemen,
-        animalId: inseminations.animalId,
-        tagNumber: animals.tagNumber,
-      })
+      .select({ id: inseminations.id, inseminationDate: inseminations.inseminationDate, bullSemen: inseminations.bullSemen, animalId: inseminations.animalId, tagNumber: animals.tagNumber })
       .from(inseminations)
       .leftJoin(animals, eq(inseminations.animalId, animals.id))
-      .where(and(
-        eq(inseminations.status, "PENDING"),
-        lte(inseminations.inseminationDate, sixtyDaysAgoStr),
-      ))
+      .where(and(eq(inseminations.status, "PENDING"), lte(inseminations.inseminationDate, sixtyDaysAgoStr)))
       .limit(10);
 
     recentInseminations = await db
-      .select({
-        id: inseminations.id,
-        inseminationDate: inseminations.inseminationDate,
-        status: inseminations.status,
-        bullSemen: inseminations.bullSemen,
-        animalId: inseminations.animalId,
-        tagNumber: animals.tagNumber,
-        category: animals.category,
-      })
+      .select({ id: inseminations.id, inseminationDate: inseminations.inseminationDate, status: inseminations.status, bullSemen: inseminations.bullSemen, animalId: inseminations.animalId, tagNumber: animals.tagNumber, category: animals.category })
       .from(inseminations)
       .leftJoin(animals, eq(inseminations.animalId, animals.id))
       .orderBy(desc(inseminations.inseminationDate), desc(inseminations.id))
       .limit(10);
 
-    const history = await db
-      .select({
-        animalId: pastureHistory.animalId,
-        enteredAt: pastureHistory.enteredAt,
-        exitedAt: pastureHistory.exitedAt,
-      })
-      .from(pastureHistory);
+    const history = await db.select({ animalId: pastureHistory.animalId, enteredAt: pastureHistory.enteredAt, exitedAt: pastureHistory.exitedAt }).from(pastureHistory);
 
     monthlyData = [-5, -4, -3, -2, -1, 0].map((offset) => {
       const asOf = monthEnd(offset);
-      const count = new Set(
-        history
-          .filter(h => h.enteredAt <= asOf && (h.exitedAt === null || h.exitedAt > asOf))
-          .map(h => h.animalId)
-      ).size;
+      const count = new Set(history.filter(h => h.enteredAt <= asOf && (h.exitedAt === null || h.exitedAt > asOf)).map(h => h.animalId)).size;
       return { label: monthLabel(offset), count };
     });
 
     if (query) {
       searchResults = await db
-        .select({
-          id: animals.id,
-          tagNumber: animals.tagNumber,
-          category: animals.category,
-          status: animals.status,
-          pastureName: pastures.name,
-        })
+        .select({ id: animals.id, tagNumber: animals.tagNumber, category: animals.category, status: animals.status, pastureName: pastures.name })
         .from(animals)
         .leftJoin(pastures, eq(animals.currentPastureId, pastures.id))
         .where(sql`animals.tag_number ILIKE ${"%" + query + "%"}`)
@@ -150,76 +101,39 @@ export default async function DashboardPage({
     console.error("DB connection error on dashboard:", error);
   }
 
-  const chartW = 480;
-  const chartH = 140;
-  const padL = 36;
-  const padB = 28;
-  const padT = 12;
-  const innerW = chartW - padL - 16;
-  const innerH = chartH - padT - padB;
+  const chartW = 480; const chartH = 140; const padL = 36; const padB = 28; const padT = 12;
+  const innerW = chartW - padL - 16; const innerH = chartH - padT - padB;
   const barW = monthlyData.length > 0 ? innerW / monthlyData.length : 0;
   const maxCount = Math.max(...monthlyData.map(m => m.count), 1);
 
   return (
     <div className="space-y-8 max-w-5xl">
-
-      {/* Page title */}
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-white">Dashboard</h2>
         <p className="text-sm text-zinc-500 mt-1">Visão geral do rebanho</p>
       </div>
 
-      {/* ── Stat cards ── */}
+      {/* Stat cards */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <Link href="/animals?status=ACTIVE"
-          className="group rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-5 flex flex-col gap-3
-                     hover:border-emerald-500/30 hover:bg-zinc-900/80 transition-all duration-200
-                     shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">Animais Ativos</span>
-            <Beef className="h-4 w-4 text-zinc-600 group-hover:text-emerald-500 transition-colors" />
-          </div>
-          <span className="text-3xl font-bold text-white tabular-nums">{stats.totalAnimals}</span>
-        </Link>
-
-        <Link href="/animals?category=VACA&status=ACTIVE"
-          className="group rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-5 flex flex-col gap-3
-                     hover:border-blue-500/30 hover:bg-zinc-900/80 transition-all duration-200
-                     shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">Vacas</span>
-            <Activity className="h-4 w-4 text-zinc-600 group-hover:text-blue-400 transition-colors" />
-          </div>
-          <span className="text-3xl font-bold text-white tabular-nums">{stats.totalVacas}</span>
-        </Link>
-
-        <Link href="/animals?status=ACTIVE"
-          className="group rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-5 flex flex-col gap-3
-                     hover:border-amber-500/30 hover:bg-zinc-900/80 transition-all duration-200
-                     shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">Bezerros(as)</span>
-            <Sprout className="h-4 w-4 text-zinc-600 group-hover:text-amber-400 transition-colors" />
-          </div>
-          <span className="text-3xl font-bold text-white tabular-nums">{stats.totalBezerros}</span>
-        </Link>
-
-        <Link href="/pastures"
-          className="group rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-5 flex flex-col gap-3
-                     hover:border-emerald-500/30 hover:bg-zinc-900/80 transition-all duration-200
-                     shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">Pastos Ativos</span>
-            <Trees className="h-4 w-4 text-zinc-600 group-hover:text-emerald-500 transition-colors" />
-          </div>
-          <span className="text-3xl font-bold text-white tabular-nums">{stats.activePastures}</span>
-        </Link>
+        {[
+          { href: "/animals?status=ACTIVE", label: "Animais Ativos", value: stats.totalAnimals, Icon: Beef, hover: "hover:border-emerald-500/30", iconColor: "group-hover:text-emerald-500" },
+          { href: "/animals?category=VACA&status=ACTIVE", label: "Vacas", value: stats.totalVacas, Icon: Activity, hover: "hover:border-blue-500/30", iconColor: "group-hover:text-blue-400" },
+          { href: "/animals?status=ACTIVE", label: "Bezerros(as)", value: stats.totalBezerros, Icon: Sprout, hover: "hover:border-amber-500/30", iconColor: "group-hover:text-amber-400" },
+          { href: "/pastures", label: "Pastos Ativos", value: stats.activePastures, Icon: Trees, hover: "hover:border-emerald-500/30", iconColor: "group-hover:text-emerald-500" },
+        ].map(({ href, label, value, Icon, hover, iconColor }) => (
+          <Link key={href} href={href} className={`group rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-5 flex flex-col gap-3 ${hover} hover:bg-zinc-900/80 transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]`}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">{label}</span>
+              <Icon className={`h-4 w-4 text-zinc-600 transition-colors ${iconColor}`} />
+            </div>
+            <span className="text-3xl font-bold text-white tabular-nums">{value}</span>
+          </Link>
+        ))}
       </div>
 
-      {/* ── Alerts ── */}
+      {/* Alerts */}
       {overdueInseminations.length > 0 && (
-        <div className="rounded-xl border border-amber-900/40 bg-amber-950/20 p-5 space-y-3
-                        shadow-[inset_0_1px_0_rgba(245,158,11,0.06)]">
+        <div className="rounded-xl border border-amber-900/40 bg-amber-950/20 p-5 space-y-3 shadow-[inset_0_1px_0_rgba(245,158,11,0.06)]">
           <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
             <AlertTriangle size={16} />
             {overdueInseminations.length} inseminação(ões) aguardando resultado há mais de 60 dias
@@ -227,63 +141,40 @@ export default async function DashboardPage({
           <div className="space-y-1.5">
             {overdueInseminations.map(ins => (
               <div key={ins.id} className="flex items-center gap-3 text-sm">
-                <Link href={`/animals/${ins.animalId}`}
-                  className="font-mono text-white hover:text-amber-400 transition-colors text-xs">
-                  #{ins.tagNumber ?? ins.animalId}
-                </Link>
+                <Link href={`/animals/${ins.animalId}`} className="font-mono text-white hover:text-amber-400 transition-colors text-xs">#{ins.tagNumber ?? ins.animalId}</Link>
                 <span className="text-zinc-600">·</span>
                 <span className="text-zinc-500 text-xs">inseminada em {ins.inseminationDate}</span>
                 {ins.bullSemen && <span className="text-zinc-700 text-xs">· {ins.bullSemen}</span>}
               </div>
             ))}
           </div>
-          <Link href="/inseminations?status=PENDING" className="text-xs text-amber-500 hover:text-amber-300 transition-colors">
-            Ver todas as pendentes →
-          </Link>
+          <Link href="/inseminations?status=PENDING" className="text-xs text-amber-500 hover:text-amber-300 transition-colors">Ver todas as pendentes →</Link>
         </div>
       )}
 
-      {/* ── 1. Buscar ── */}
-      <section className="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4
-                          shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      {/* 1. Buscar */}
+      <section className="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
         <div className="flex items-center gap-2">
           <Search className="h-4 w-4 text-emerald-400" />
           <h3 className="text-sm font-semibold text-white uppercase tracking-widest">Buscar</h3>
         </div>
         <form method="GET" className="flex gap-3">
-          <input
-            name="q"
-            defaultValue={query}
-            placeholder="Número do brinco..."
-            className="flex-1 px-4 py-2.5 bg-zinc-800/80 border border-zinc-700/60 rounded-lg text-sm text-white
-                       placeholder-zinc-600 focus:outline-none focus:border-emerald-500/60 transition-colors"
-          />
-          <button type="submit"
-            className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-zinc-950 rounded-lg
-                       text-sm font-semibold transition-all duration-150">
-            Buscar
-          </button>
+          <input name="q" defaultValue={query} placeholder="Número do brinco..."
+            className="flex-1 px-4 py-2.5 bg-zinc-800/80 border border-zinc-700/60 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500/60 transition-colors" />
+          <button type="submit" className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-zinc-950 rounded-lg text-sm font-semibold transition-all duration-150">Buscar</button>
         </form>
-        {query && searchResults.length === 0 && (
-          <p className="text-zinc-600 text-sm">Nenhum animal encontrado com brinco "{query}".</p>
-        )}
+        {query && searchResults.length === 0 && <p className="text-zinc-600 text-sm">Nenhum animal encontrado com brinco "{query}".</p>}
         {searchResults.length > 0 && (
           <div className="space-y-2">
             {searchResults.map((a) => (
-              <Link key={a.id} href={`/animals/${a.id}`}
-                className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/60 border border-zinc-700/40
-                           hover:bg-zinc-800 hover:border-zinc-600/60 transition-all duration-150">
+              <Link key={a.id} href={`/animals/${a.id}`} className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/60 border border-zinc-700/40 hover:bg-zinc-800 hover:border-zinc-600/60 transition-all duration-150">
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-white font-semibold text-sm">#{a.tagNumber}</span>
                   <span className="text-[11px] text-zinc-500 px-2 py-0.5 bg-zinc-700/60 rounded">{a.category}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   {a.pastureName && <span className="text-sm text-zinc-500">{a.pastureName}</span>}
-                  <span className={`text-[11px] px-2 py-0.5 rounded font-medium ${
-                    a.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400" :
-                    a.status === "SOLD"   ? "bg-zinc-500/10 text-zinc-400" :
-                                            "bg-red-900/20 text-red-400"
-                  }`}>
+                  <span className={`text-[11px] px-2 py-0.5 rounded font-medium ${a.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400" : a.status === "SOLD" ? "bg-zinc-500/10 text-zinc-400" : "bg-red-900/20 text-red-400"}`}>
                     {a.status === "ACTIVE" ? "Ativo" : a.status === "SOLD" ? "Vendido" : "Morto"}
                   </span>
                 </div>
@@ -293,10 +184,9 @@ export default async function DashboardPage({
         )}
       </section>
 
-      {/* ── 2. Evolução ── */}
+      {/* 2. Evolução */}
       {monthlyData.some(m => m.count > 0) && (
-        <section className="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4
-                            shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <section className="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-emerald-400" />
             <h3 className="text-sm font-semibold text-white uppercase tracking-widest">Evolução do Rebanho</h3>
@@ -305,115 +195,36 @@ export default async function DashboardPage({
           <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full max-w-2xl">
             {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
               const y = padT + innerH * (1 - pct);
-              return (
-                <g key={pct}>
-                  <line x1={padL} y1={y} x2={chartW - 8} y2={y} stroke="#27272a" strokeWidth="1" />
-                  <text x={padL - 4} y={y + 4} textAnchor="end" fill="#52525b" fontSize="9">
-                    {Math.round(maxCount * pct)}
-                  </text>
-                </g>
-              );
+              return (<g key={pct}><line x1={padL} y1={y} x2={chartW - 8} y2={y} stroke="#27272a" strokeWidth="1" /><text x={padL - 4} y={y + 4} textAnchor="end" fill="#52525b" fontSize="9">{Math.round(maxCount * pct)}</text></g>);
             })}
             {monthlyData.map((m, i) => {
               const barH = m.count > 0 ? (m.count / maxCount) * innerH : 0;
-              const x = padL + i * barW + barW * 0.18;
-              const w = barW * 0.64;
-              const y = chartH - padB - barH;
-              return (
-                <g key={i}>
-                  <rect x={x} y={padT} width={w} height={innerH} fill="#18181b" rx="3" />
-                  <rect x={x} y={y} width={w} height={barH} fill="#10b981" rx="3" opacity="0.9" />
-                  {m.count > 0 && (
-                    <text x={x + w / 2} y={y - 5} textAnchor="middle" fill="#a1a1aa" fontSize="10" fontWeight="600">
-                      {m.count}
-                    </text>
-                  )}
-                  <text x={x + w / 2} y={chartH - padB + 14} textAnchor="middle" fill="#52525b" fontSize="10">
-                    {m.label}
-                  </text>
-                </g>
-              );
+              const x = padL + i * barW + barW * 0.18; const w = barW * 0.64; const y = chartH - padB - barH;
+              return (<g key={i}><rect x={x} y={padT} width={w} height={innerH} fill="#18181b" rx="3" /><rect x={x} y={y} width={w} height={barH} fill="#10b981" rx="3" opacity="0.9" />{m.count > 0 && <text x={x + w / 2} y={y - 5} textAnchor="middle" fill="#a1a1aa" fontSize="10" fontWeight="600">{m.count}</text>}<text x={x + w / 2} y={chartH - padB + 14} textAnchor="middle" fill="#52525b" fontSize="10">{m.label}</text></g>);
             })}
             <line x1={padL} y1={chartH - padB} x2={chartW - 8} y2={chartH - padB} stroke="#3f3f46" strokeWidth="1" />
           </svg>
         </section>
       )}
 
-      {/* ── 3. Últimas 10 Inseminações ── */}
-      <section className="rounded-xl border border-zinc-800/60 bg-zinc-900/40
-                          shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/60">
-          <div className="flex items-center gap-2">
-            <Syringe className="h-4 w-4 text-purple-400" />
-            <h3 className="text-sm font-semibold text-white uppercase tracking-widest">Inseminações</h3>
-            <span className="text-xs text-zinc-600">últimas 10</span>
-          </div>
-          <Link href="/inseminations"
-            className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-            Ver todas <ArrowRight size={12} />
-          </Link>
-        </div>
-
-        {recentInseminations.length === 0 ? (
-          <div className="px-6 py-10 text-center text-zinc-600 text-sm">
-            Nenhuma inseminação registrada ainda.
-          </div>
-        ) : (
-          <div className="divide-y divide-zinc-800/60">
-            {recentInseminations.map((ins) => (
-              <div key={ins.id}
-                className="flex items-center gap-4 px-6 py-3 hover:bg-zinc-800/30 transition-colors">
-                <span className="text-xs text-zinc-600 tabular-nums w-20 shrink-0">
-                  {ins.inseminationDate ?? "—"}
-                </span>
-                <Link href={`/animals/${ins.animalId}`}
-                  className="font-mono text-white hover:text-purple-400 transition-colors text-sm font-semibold w-20 shrink-0">
-                  {ins.tagNumber ? `#${ins.tagNumber}` : "—"}
-                </Link>
-                <span className="text-xs text-zinc-600 w-16 shrink-0">{ins.category ?? ""}</span>
-                <span className="text-xs text-zinc-500 flex-1 truncate">{ins.bullSemen ?? ""}</span>
-                <span className={`shrink-0 px-2 py-0.5 rounded text-[11px] font-medium ${STATUS_COLOR[ins.status ?? "PENDING"] ?? ""}`}>
-                  {STATUS_LABEL[ins.status ?? "PENDING"] ?? ins.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* ── 4. Pastos ── */}
+      {/* 3. Pastos */}
       {topPastures.length > 0 && (
-        <section className="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4
-                            shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <section className="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Trees className="h-4 w-4 text-emerald-400" />
               <h3 className="text-sm font-semibold text-white uppercase tracking-widest">Pastos</h3>
             </div>
-            <Link href="/pastures"
-              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-              Ver todos <ArrowRight size={12} />
-            </Link>
+            <Link href="/pastures" className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">Ver todos <ArrowRight size={12} /></Link>
           </div>
           <div className="space-y-2.5">
             {topPastures.map((p) => {
-              const pct = stats.totalAnimals > 0
-                ? Math.round((Number(p.animalCount) / stats.totalAnimals) * 100) : 0;
+              const pct = stats.totalAnimals > 0 ? Math.round((Number(p.animalCount) / stats.totalAnimals) * 100) : 0;
               return (
-                <Link key={p.id} href={`/pastures/${p.id}`}
-                  className="flex items-center gap-3 group hover:opacity-80 transition-opacity">
-                  <span className="text-sm text-zinc-400 group-hover:text-zinc-200 transition-colors w-32 truncate shrink-0">
-                    {p.name}
-                  </span>
-                  <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="text-sm text-zinc-500 tabular-nums w-6 text-right shrink-0">
-                    {p.animalCount}
-                  </span>
+                <Link key={p.id} href={`/pastures/${p.id}`} className="flex items-center gap-3 group hover:opacity-80 transition-opacity">
+                  <span className="text-sm text-zinc-400 group-hover:text-zinc-200 transition-colors w-32 truncate shrink-0">{p.name}</span>
+                  <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} /></div>
+                  <span className="text-sm text-zinc-500 tabular-nums w-6 text-right shrink-0">{p.animalCount}</span>
                 </Link>
               );
             })}
@@ -421,6 +232,34 @@ export default async function DashboardPage({
         </section>
       )}
 
+      {/* 4. Últimas 10 Inseminações — LAST */}
+      <section className="rounded-xl border border-zinc-800/60 bg-zinc-900/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/60">
+          <div className="flex items-center gap-2">
+            <Syringe className="h-4 w-4 text-purple-400" />
+            <h3 className="text-sm font-semibold text-white uppercase tracking-widest">Inseminações</h3>
+            <span className="text-xs text-zinc-600">últimas 10</span>
+          </div>
+          <Link href="/inseminations" className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">Ver todas <ArrowRight size={12} /></Link>
+        </div>
+        {recentInseminations.length === 0 ? (
+          <div className="px-6 py-10 text-center text-zinc-600 text-sm">Nenhuma inseminação registrada ainda.</div>
+        ) : (
+          <div className="divide-y divide-zinc-800/60">
+            {recentInseminations.map((ins) => (
+              <Link key={ins.id} href={`/animals/${ins.animalId}`} className="flex items-center gap-4 px-6 py-3 hover:bg-zinc-800/30 transition-colors">
+                <span className="text-xs text-zinc-600 tabular-nums w-20 shrink-0">{ins.inseminationDate ?? "—"}</span>
+                <span className="font-mono text-white text-sm font-semibold w-20 shrink-0">{ins.tagNumber ? `#${ins.tagNumber}` : "—"}</span>
+                <span className="text-xs text-zinc-600 w-16 shrink-0">{ins.category ?? ""}</span>
+                <span className="text-xs text-zinc-500 flex-1 truncate">{ins.bullSemen ?? ""}</span>
+                <span className={`shrink-0 px-2 py-0.5 rounded text-[11px] font-medium ${STATUS_COLOR[ins.status ?? "PENDING"] ?? ""}`}>
+                  {STATUS_LABEL[ins.status ?? "PENDING"] ?? ins.status}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

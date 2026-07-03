@@ -23,6 +23,7 @@ export const animals = pgTable('animals', {
   currentPastureId: integer('current_pasture_id').references(() => pastures.id),
   weight: real('weight'),
   healthNotes: text('health_notes'),
+  isPregnant: boolean('is_pregnant').default(false),
 });
 
 export const pastureInventories = pgTable('pasture_inventories', {
