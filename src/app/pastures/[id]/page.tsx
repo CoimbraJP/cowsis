@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Trees, Clock, Plus } from 'lucide-react';
 import { moveAnimalToPasture } from '@/app/animals/actions';
 import { DeletePastureButton } from './DeletePastureButton';
+import { EditPastureButton } from './EditPastureButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,6 +101,7 @@ export default async function PastureDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <EditPastureButton id={pastureId} currentName={pasture.name} />
           <DeletePastureButton id={pastureId} />
           <Link
             href={`/animals/new?pastureId=${pastureId}`}

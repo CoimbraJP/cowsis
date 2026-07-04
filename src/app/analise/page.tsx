@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { pastures, animals, pastureHistory, animalTransactions } from '@/db/schema';
-import { eq, and, gte, lte, or, isNotNull, desc, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, or, isNotNull, isNull, not, exists, desc, sql } from 'drizzle-orm';
 import Link from 'next/link';
 import { CalendarDays, ArrowRightLeft, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
@@ -146,6 +146,35 @@ export default async function AnalisePage({
         : undefined,
     ))
     .orderBy(desc(animalTransactions.transactionDate));
+
+  // ── 6. Animals with currentPastureId but NO pastureHistory (direct SQL inserts) ──
+  // These won't appear in the timeline at all — show them in a separate section.
+  const subHistory = db.select({ animalId: pastureHistory.animalId }).from(pastureHistory);
+  const noHistoryAnimals = await db
+    .select({
+      id: animals.id,
+      tagNumber: animals.tagNumber,
+      category: animals.category,
+      pastureId: animals.currentPastureId,
+    })
+    .from(animals)
+    .where(
+      and(
+        isNotNull(animals.currentPastureId),
+        eq(animals.status, 'ACTIVE'),
+        not(exists(subHistory.where(eq(pastureHistory.animalId, animals.id)))),
+        pastureFilter ? eq(animals.currentPastureId, pastureFilter) : undefined,
+      )
+    )
+    .orderBy(animals.currentPastureId, animals.tagNumber);
+
+  // Group no-history animals by pasture
+  const noHistoryByPasture: Record<number, { name: string; animals: typeof noHistoryAnimals }> = {};
+  for (const a of noHistoryAnimals) {
+    if (!a.pastureId) continue;
+    if (!noHistoryByPasture[a.pastureId]) noHistoryByPasture[a.pastureId] = { name: pastureMap[a.pastureId] ?? `Pasto #${a.pastureId}`, animals: [] };
+    noHistoryByPasture[a.pastureId].animals.push(a);
+  }
 
   return (
     <div className="space-y-6">
@@ -322,6 +351,32 @@ export default async function AnalisePage({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Animais sem histórico de movimentação */}
+      {noHistoryAnimals.length > 0 && (
+        <div className="rounded-xl border border-zinc-700/60 bg-zinc-900/50 overflow-hidden">
+          <div className="px-4 py-3 bg-zinc-900 border-b border-zinc-800 flex items-center gap-3">
+            <h3 className="text-sm font-semibold text-white">Animais sem histórico de movimentação</h3>
+            <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded">{noHistoryAnimals.length} animal(is)</span>
+            <span className="text-xs text-zinc-500 ml-auto">Adicionados diretamente · não aparecem na linha do tempo</span>
+          </div>
+          <div className="divide-y divide-zinc-800/60">
+            {Object.entries(noHistoryByPasture).map(([pid, group]) => (
+              <div key={pid} className="px-4 py-3 space-y-2">
+                <p className="text-xs font-medium text-emerald-400">{group.name} — {group.animals.length} animais</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {group.animals.map(a => (
+                    <a key={a.id} href={`/animals/${a.id}`}
+                      className={`text-xs px-2 py-0.5 rounded font-mono bg-zinc-800/80 hover:bg-zinc-700 transition-colors ${CAT_COLOR[a.category] ?? 'text-zinc-400'}`}>
+                      {a.tagNumber ?? 'S/B'}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

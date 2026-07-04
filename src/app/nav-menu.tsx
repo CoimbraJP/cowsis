@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Trees, Beef, History, Syringe,
-  BarChart3, GitCompare, CalendarDays, FileText,
+  BarChart3, CalendarDays, FileText,
 } from 'lucide-react';
 
 const NAV = [
@@ -19,7 +19,6 @@ const REPORTS = [
   { href: '/relatorio',          label: 'Relatório PDF',     Icon: FileText    },
   { href: '/analise',            label: 'Análise por Data',  Icon: CalendarDays },
   { href: '/pastures/historico', label: 'Histórico',         Icon: BarChart3   },
-  { href: '/pastures/comparar',  label: 'Comparar Pastos',   Icon: GitCompare  },
 ];
 
 function NavLink({ href, label, Icon }: { href: string; label: string; Icon: React.ElementType }) {

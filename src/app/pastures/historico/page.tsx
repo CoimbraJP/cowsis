@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { pastures, animals, pastureHistory } from '@/db/schema';
-import { eq, and, lte, or, isNull, sql } from 'drizzle-orm';
+import { eq, and, lte, or, isNull, isNotNull, not, exists, sql } from 'drizzle-orm';
 import Link from 'next/link';
 import { BarChart3 } from 'lucide-react';
 
@@ -77,6 +77,34 @@ export default async function PastureHistoricoPage({
       if (!monthData[month][row.pastureId]) monthData[month][row.pastureId] = {};
       monthData[month][row.pastureId][row.category] = Number(row.count);
     }
+  }
+
+  // ── Supplement: animals with currentPastureId but NO pastureHistory ──────────
+  // These were inserted directly (seed script) without going through the app actions.
+  // We add them to the CURRENT month only (since we don't know their historical position).
+  const currentMonth = months[0]; // most recent month
+  const subHistory2 = db.select({ animalId: pastureHistory.animalId }).from(pastureHistory);
+  const noHistoryRows = await db
+    .select({
+      pastureId: animals.currentPastureId,
+      category: animals.category,
+      count: sql<number>`count(*)`,
+    })
+    .from(animals)
+    .where(and(
+      isNotNull(animals.currentPastureId),
+      eq(animals.status, 'ACTIVE'),
+      not(exists(subHistory2.where(eq(pastureHistory.animalId, animals.id)))),
+    ))
+    .groupBy(animals.currentPastureId, animals.category);
+
+  // Merge into current month only
+  if (!monthData[currentMonth]) monthData[currentMonth] = {};
+  for (const row of noHistoryRows) {
+    if (!row.pastureId) continue;
+    if (!monthData[currentMonth][row.pastureId]) monthData[currentMonth][row.pastureId] = {};
+    monthData[currentMonth][row.pastureId][row.category] =
+      (monthData[currentMonth][row.pastureId][row.category] ?? 0) + Number(row.count);
   }
 
   // Determine which categories actually appear

@@ -100,14 +100,24 @@ export default async function RelatorioPage({
     }
   }
 
-  // --- GENERAL STATS (always shown) ---
+  // --- GENERAL STATS (filtered by pasto when specific pasto selected) ---
+  // specificPid: the numeric pasto ID if one is selected, null otherwise
+  const specificPid = (pastureFilter && pastureFilter !== 'all' && !isNaN(Number(pastureFilter)))
+    ? Number(pastureFilter)
+    : null;
+
   const animalsByCat = await db
     .select({ category: animals.category, count: sql<number>`count(*)` })
-    .from(animals).where(eq(animals.status, 'ACTIVE'))
+    .from(animals)
+    .where(and(
+      eq(animals.status, 'ACTIVE'),
+      specificPid ? eq(animals.currentPastureId, specificPid) : undefined,
+    ))
     .groupBy(animals.category).orderBy(animals.category);
   const totalActive = animalsByCat.reduce((s, r) => s + Number(r.count), 0);
 
-  const animalsByPasture = await db
+  // Only show "by pasture" breakdown in general mode
+  const animalsByPasture = specificPid ? [] : await db
     .select({ pastureId: animals.currentPastureId, count: sql<number>`count(*)` })
     .from(animals).where(eq(animals.status, 'ACTIVE'))
     .groupBy(animals.currentPastureId);
@@ -121,7 +131,11 @@ export default async function RelatorioPage({
     toPastureId: animalTransactions.toPastureId,
   }).from(animalTransactions)
     .leftJoin(animals, eq(animalTransactions.animalId, animals.id))
-    .where(and(gte(animalTransactions.transactionDate, dateFrom), lte(animalTransactions.transactionDate, dateTo)))
+    .where(and(
+      gte(animalTransactions.transactionDate, dateFrom),
+      lte(animalTransactions.transactionDate, dateTo),
+      specificPid ? eq(animals.currentPastureId, specificPid) : undefined,
+    ))
     .orderBy(animalTransactions.transactionDate);
 
   const txByType: Record<string, typeof txRows> = {};
@@ -139,7 +153,11 @@ export default async function RelatorioPage({
     paid: inseminations.paid, tagNumber: animals.tagNumber,
   }).from(inseminations)
     .leftJoin(animals, eq(inseminations.animalId, animals.id))
-    .where(and(gte(inseminations.inseminationDate, dateFrom), lte(inseminations.inseminationDate, dateTo)))
+    .where(and(
+      gte(inseminations.inseminationDate, dateFrom),
+      lte(inseminations.inseminationDate, dateTo),
+      specificPid ? eq(animals.currentPastureId, specificPid) : undefined,
+    ))
     .orderBy(inseminations.inseminationDate);
 
   const nInsemPending   = insemRows.filter(r => r.status === 'PENDING').length;

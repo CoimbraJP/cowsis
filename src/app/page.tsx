@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { animals, pastures, inseminations, pastureHistory } from "@/db/schema";
-import { sql, eq, and, lte, desc } from "drizzle-orm";
-import { Activity, Beef, Sprout, Trees, Search, AlertTriangle, TrendingUp, Syringe, ArrowRight } from "lucide-react";
+import { sql, eq, and, desc } from "drizzle-orm";
+import { Activity, Beef, Sprout, Trees, Search, TrendingUp, Syringe, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -37,14 +37,9 @@ export default async function DashboardPage({
 }) {
   const sp = await searchParams;
   const query = sp.q?.trim() || "";
-  const sixtyDaysAgo = new Date();
-  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-  const sixtyDaysAgoStr = sixtyDaysAgo.toISOString().split("T")[0];
-
   let stats = { totalAnimals: 0, totalVacas: 0, totalBezerros: 0, activePastures: 0 };
   let searchResults: any[] = [];
   let topPastures: any[] = [];
-  let overdueInseminations: any[] = [];
   let monthlyData: { label: string; count: number }[] = [];
   let recentInseminations: any[] = [];
 
@@ -66,13 +61,6 @@ export default async function DashboardPage({
       .groupBy(pastures.id)
       .orderBy(sql`count(${animals.id}) desc`)
       .limit(6);
-
-    overdueInseminations = await db
-      .select({ id: inseminations.id, inseminationDate: inseminations.inseminationDate, bullSemen: inseminations.bullSemen, animalId: inseminations.animalId, tagNumber: animals.tagNumber })
-      .from(inseminations)
-      .leftJoin(animals, eq(inseminations.animalId, animals.id))
-      .where(and(eq(inseminations.status, "PENDING"), lte(inseminations.inseminationDate, sixtyDaysAgoStr)))
-      .limit(10);
 
     recentInseminations = await db
       .select({ id: inseminations.id, inseminationDate: inseminations.inseminationDate, status: inseminations.status, bullSemen: inseminations.bullSemen, animalId: inseminations.animalId, tagNumber: animals.tagNumber, category: animals.category })
@@ -130,27 +118,6 @@ export default async function DashboardPage({
           </Link>
         ))}
       </div>
-
-      {/* Alerts */}
-      {overdueInseminations.length > 0 && (
-        <div className="rounded-xl border border-amber-900/40 bg-amber-950/20 p-5 space-y-3 shadow-[inset_0_1px_0_rgba(245,158,11,0.06)]">
-          <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
-            <AlertTriangle size={16} />
-            {overdueInseminations.length} inseminação(ões) aguardando resultado há mais de 60 dias
-          </div>
-          <div className="space-y-1.5">
-            {overdueInseminations.map(ins => (
-              <div key={ins.id} className="flex items-center gap-3 text-sm">
-                <Link href={`/animals/${ins.animalId}`} className="font-mono text-white hover:text-amber-400 transition-colors text-xs">#{ins.tagNumber ?? ins.animalId}</Link>
-                <span className="text-zinc-600">·</span>
-                <span className="text-zinc-500 text-xs">inseminada em {ins.inseminationDate}</span>
-                {ins.bullSemen && <span className="text-zinc-700 text-xs">· {ins.bullSemen}</span>}
-              </div>
-            ))}
-          </div>
-          <Link href="/inseminations?status=PENDING" className="text-xs text-amber-500 hover:text-amber-300 transition-colors">Ver todas as pendentes →</Link>
-        </div>
-      )}
 
       {/* 1. Buscar */}
       <section className="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
