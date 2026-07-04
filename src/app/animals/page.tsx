@@ -41,7 +41,7 @@ function sortIcon(s: string, k: string) {
 export default async function AnimalsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; category?: string; sort?: string; pregnant?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; category?: string; sort?: string; pregnant?: string; bezerros?: string }>;
 }) {
   const sp = await searchParams;
   const query          = sp.q?.trim() || '';
