@@ -2,7 +2,7 @@
 
 A complete web system for managing cattle farms, built to replace disorganized Excel spreadsheets with a reliable, centralized, and device-accessible solution.
 
-> **Delivered and running in production.**
+> **Delivered and running in production.** — V2
 
 ---
 
