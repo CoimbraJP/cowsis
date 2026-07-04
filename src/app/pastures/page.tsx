@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { pastures, animals } from "@/db/schema";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, and } from "drizzle-orm";
 import { Trees, Plus, Pencil, PowerOff } from "lucide-react";
 import Link from "next/link";
 import { updatePasture, togglePastureActive } from "./actions";
@@ -23,7 +23,7 @@ export default async function PasturesPage({
       animalCount: sql<number>`count(${animals.id})`,
     })
     .from(pastures)
-    .leftJoin(animals, eq(pastures.id, animals.currentPastureId))
+    .leftJoin(animals, and(eq(pastures.id, animals.currentPastureId), eq(animals.status, 'ACTIVE')))
     .groupBy(pastures.id)
     .orderBy(pastures.name);
 

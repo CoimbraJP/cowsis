@@ -1,7 +1,7 @@
 import React from 'react';
 import { db } from '@/db';
 import { animalTransactions, animals, pastures } from '@/db/schema';
-import { eq, desc, and, gte, lte, sql } from 'drizzle-orm';
+import { eq, desc, and, gte, lte } from 'drizzle-orm';
 import { History } from 'lucide-react';
 import Link from 'next/link';
 
@@ -58,11 +58,11 @@ export default async function TransactionsPage({
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(animalTransactions.transactionDate), desc(animalTransactions.id));
 
-  const allCounts = await db
-    .select({ type: animalTransactions.type, count: sql<number>`count(*)` })
-    .from(animalTransactions)
-    .groupBy(animalTransactions.type);
-  const counts = Object.fromEntries(allCounts.map(r => [r.type, Number(r.count)]));
+  // P16: Counts should reflect the currently-filtered list, not all-time totals
+  const counts: Record<string, number> = {};
+  for (const tx of txList) {
+    counts[tx.type] = (counts[tx.type] ?? 0) + 1;
+  }
 
   const totalReceita = txList.filter(t => t.type === 'SALE' && t.amount).reduce((s, t) => s + (t.amount ?? 0), 0);
   const totalDespesa = txList.filter(t => t.type !== 'SALE' && t.amount).reduce((s, t) => s + (t.amount ?? 0), 0);

@@ -27,7 +27,7 @@ const STATUS_COLOR: Record<string, string> = {
   FAILED:    "bg-zinc-500/10 text-zinc-400 ring-1 ring-zinc-500/20",
 };
 const STATUS_LABEL: Record<string, string> = {
-  PENDING: "Aguardando", CONFIRMED: "Prenha", FAILED: "Pronto",
+  PENDING: "Aguardando", CONFIRMED: "Prenha", FAILED: "Não prenhou",
 };
 
 export default async function DashboardPage({
@@ -106,7 +106,7 @@ export default async function DashboardPage({
         {[
           { href: "/animals?status=ACTIVE", label: "Animais Ativos", value: stats.totalAnimals, Icon: Beef, hover: "hover:border-emerald-500/30", iconColor: "group-hover:text-emerald-500" },
           { href: "/animals?category=VACA&status=ACTIVE", label: "Vacas", value: stats.totalVacas, Icon: Activity, hover: "hover:border-blue-500/30", iconColor: "group-hover:text-blue-400" },
-          { href: "/animals?status=ACTIVE", label: "Bezerros(as)", value: stats.totalBezerros, Icon: Sprout, hover: "hover:border-amber-500/30", iconColor: "group-hover:text-amber-400" },
+          { href: "/animals?bezerros=1&status=ACTIVE", label: "Bezerros(as)", value: stats.totalBezerros, Icon: Sprout, hover: "hover:border-amber-500/30", iconColor: "group-hover:text-amber-400" },
           { href: "/pastures", label: "Pastos Ativos", value: stats.activePastures, Icon: Trees, hover: "hover:border-emerald-500/30", iconColor: "group-hover:text-emerald-500" },
         ].map(({ href, label, value, Icon, hover, iconColor }) => (
           <Link key={href} href={href} className={`group rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-5 flex flex-col gap-3 ${hover} hover:bg-zinc-900/80 transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]`}>

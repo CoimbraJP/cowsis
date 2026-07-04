@@ -1,17 +1,25 @@
 import { db } from '@/db';
 import { animals, pastures, births, inseminations, animalTransactions } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { updateAnimal, deleteAnimal, addVaccine, deleteVaccine, updateTransactionDate, addInsemination } from '../actions';
+import { updateAnimal, addVaccine, deleteVaccine, updateTransactionDate, addInsemination, updateInsemination, registerEvent, registerBirth } from '../actions';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { DeleteAnimalButton } from './DeleteAnimalButton';
 
 export const dynamic = 'force-dynamic';
 
+// P26: Format dates as DD/MM/YYYY
+function fmtDate(d: string | null | undefined) {
+  if (!d) return '—';
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
 const INSEM_LABELS: Record<string, { label: string; cls: string }> = {
-  CONFIRMED: { label: 'Prenha',    cls: 'bg-emerald-500/10 text-emerald-400' },
-  FAILED:    { label: 'Pronto',    cls: 'bg-zinc-500/20 text-zinc-400' },
-  PENDING:   { label: 'Aguardando', cls: 'bg-amber-500/10 text-amber-400' },
+  CONFIRMED: { label: 'Prenha',       cls: 'bg-emerald-500/10 text-emerald-400' },
+  FAILED:    { label: 'Não prenhou',  cls: 'bg-zinc-500/20 text-zinc-400' },  // P25
+  PENDING:   { label: 'Aguardando',   cls: 'bg-amber-500/10 text-amber-400' },
 };
 const TX_LABELS: Record<string, string> = {
   SALE: '💰 Venda', DEATH: '💀 Morte', BIRTH: '🐣 Nascimento', ACQUISITION: '📥 Aquisição',
@@ -45,7 +53,8 @@ export default async function AnimalDetailPage({
 
   if (!animal) notFound();
 
-  const allPastures  = await db.select().from(pastures).orderBy(pastures.name);
+  // P20: Only show active pastures in dropdowns
+  const allPastures = await db.select().from(pastures).where(eq(pastures.active, true)).orderBy(pastures.name);
   const birthRecords = await db.select().from(births).where(eq(births.motherId, animalId));
   const insemRecords = await db.select().from(inseminations).where(eq(inseminations.animalId, animalId)).orderBy(desc(inseminations.id));
 
@@ -56,6 +65,7 @@ export default async function AnimalDetailPage({
       transactionDate: animalTransactions.transactionDate,
       monthLabel: animalTransactions.monthLabel,
       notes: animalTransactions.notes,
+      amount: animalTransactions.amount,
       fromPastureId: animalTransactions.fromPastureId,
       toPastureId: animalTransactions.toPastureId,
     })
@@ -161,7 +171,7 @@ export default async function AnimalDetailPage({
             <div className="flex items-center gap-3 text-sm text-zinc-400 bg-zinc-800/50 px-3 py-2 rounded-lg">
               <span>{originTx.type === 'BIRTH' ? '🐣 Nascimento' : '📥 Aquisição'}</span>
               <span className="text-zinc-600">•</span>
-              <span>{originTx.transactionDate ?? '—'}</span>
+              <span>{fmtDate(originTx.transactionDate)}</span>
               <form action={async (fd: FormData) => {
                 'use server';
                 const d = fd.get('date') as string;
@@ -184,6 +194,47 @@ export default async function AnimalDetailPage({
           Salvar alterações
         </button>
       </form>
+
+      {/* P04: Register sale or death with value */}
+      {animal.status === 'ACTIVE' && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-4">
+          <h3 className="text-lg font-semibold text-white">💰 Registrar Venda / Morte</h3>
+          <p className="text-xs text-zinc-500">Registra o evento financeiro e atualiza o status do animal automaticamente.</p>
+          <form action={async (fd: FormData) => {
+            'use server';
+            fd.set('animalId', String(animalId));
+            await registerEvent(fd);
+          }} className="flex flex-wrap gap-3 items-end">
+            <div className="space-y-1">
+              <label className="text-xs text-zinc-400">Tipo</label>
+              <select name="type"
+                className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500">
+                <option value="SALE">💰 Venda</option>
+                <option value="DEATH">💀 Morte</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-zinc-400">Data</label>
+              <input type="date" name="transactionDate" defaultValue={today}
+                className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
+            </div>
+            <div className="space-y-1 flex-1 min-w-[120px]">
+              <label className="text-xs text-zinc-400">Valor (R$)</label>
+              <input type="number" name="amount" step="0.01" min="0" placeholder="0,00"
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-emerald-500" />
+            </div>
+            <div className="space-y-1 flex-1 min-w-[120px]">
+              <label className="text-xs text-zinc-400">Observações</label>
+              <input type="text" name="notes" placeholder="Ex: comprador, causa..."
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-emerald-500" />
+            </div>
+            <button type="submit"
+              className="px-4 py-2 bg-blue-500/80 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors">
+              Registrar
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* Vaccines */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-4">
@@ -210,7 +261,7 @@ export default async function AnimalDetailPage({
             {vaccines.map((tx) => (
               <div key={tx.id} className="flex items-center gap-3 py-2 border-b border-zinc-800 last:border-0">
                 <span className="flex-1 text-sm text-zinc-300">{tx.notes}</span>
-                <span className="text-xs text-zinc-600">{tx.transactionDate}</span>
+                <span className="text-xs text-zinc-600">{fmtDate(tx.transactionDate)}</span>
                 <form action={async () => {
                   'use server';
                   await deleteVaccine(tx.id, animalId);
@@ -226,7 +277,7 @@ export default async function AnimalDetailPage({
         )}
       </div>
 
-      {/* Inseminations */}
+      {/* P01: Inseminations with edit capability */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-4">
         <h3 className="text-lg font-semibold text-white">🧬 Inseminações ({insemRecords.length})</h3>
         <form action={async (fd: FormData) => {
@@ -250,7 +301,7 @@ export default async function AnimalDetailPage({
               className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-purple-500 text-sm">
               <option value="PENDING">Aguardando</option>
               <option value="CONFIRMED">Prenha</option>
-              <option value="FAILED">Pronto</option>
+              <option value="FAILED">Não prenhou</option>
             </select>
           </div>
           <button type="submit"
@@ -264,19 +315,151 @@ export default async function AnimalDetailPage({
         {insemRecords.map((ins) => {
           const badge = INSEM_LABELS[ins.status ?? 'PENDING'];
           return (
-            <div key={ins.id} className="flex items-center justify-between text-sm py-2 border-b border-zinc-800 last:border-0">
-              <div className="flex flex-wrap gap-2 text-zinc-400">
-                <span>{ins.inseminationDate ?? '—'}</span>
-                {ins.bullSemen && <span className="text-zinc-500">• {ins.bullSemen}</span>}
-                {ins.observations && <span className="text-zinc-500 italic">• {ins.observations}</span>}
-              </div>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${badge.cls}`}>
-                {badge.label}
-              </span>
-            </div>
+            <details key={ins.id} className="group border-b border-zinc-800 last:border-0 pb-2">
+              <summary className="flex items-center justify-between text-sm py-2 cursor-pointer list-none">
+                <div className="flex flex-wrap gap-2 text-zinc-400">
+                  <span>{fmtDate(ins.inseminationDate)}</span>
+                  {ins.bullSemen && <span className="text-zinc-500">• {ins.bullSemen}</span>}
+                  {ins.paid && <span className="text-xs text-teal-400">• Pago</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${badge.cls}`}>
+                    {badge.label}
+                  </span>
+                  <span className="text-xs text-zinc-600 group-open:hidden">editar ▸</span>
+                  <span className="text-xs text-zinc-600 hidden group-open:inline">fechar ▴</span>
+                </div>
+              </summary>
+              {/* P01: Edit form for each insemination */}
+              <form action={async (fd: FormData) => {
+                'use server';
+                fd.set('animalId', String(animalId));
+                await updateInsemination(ins.id, fd);
+              }} className="mt-2 grid grid-cols-2 gap-2 p-3 bg-zinc-800/40 rounded-lg">
+                <div className="space-y-1">
+                  <label className="text-xs text-zinc-400">Data</label>
+                  <input type="date" name="inseminationDate" defaultValue={ins.inseminationDate ?? today}
+                    className="w-full px-2 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-purple-500" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-zinc-400">Status</label>
+                  <select name="status" defaultValue={ins.status ?? 'PENDING'}
+                    className="w-full px-2 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-purple-500">
+                    <option value="PENDING">Aguardando</option>
+                    <option value="CONFIRMED">Prenha</option>
+                    <option value="FAILED">Não prenhou</option>
+                  </select>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-xs text-zinc-400">Touro / Sêmen</label>
+                  <input type="text" name="bullSemen" defaultValue={ins.bullSemen ?? ''}
+                    className="w-full px-2 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500" />
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-xs text-zinc-400">Observações</label>
+                  <input type="text" name="observations" defaultValue={ins.observations ?? ''}
+                    className="w-full px-2 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500" />
+                </div>
+                <div className="col-span-2 flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer">
+                    <input type="hidden" name="paid" value="false" />
+                    <input type="checkbox" name="paid" value="true" defaultChecked={ins.paid ?? false}
+                      className="w-3.5 h-3.5 accent-purple-500" />
+                    Serviço pago
+                  </label>
+                  <button type="submit"
+                    className="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs font-medium transition-colors">
+                    Salvar alterações
+                  </button>
+                </div>
+              </form>
+            </details>
           );
         })}
       </div>
+
+      {/* P03: Register birth */}
+      {(animal.category === 'VACA' || animal.isPregnant) && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-4">
+          <h3 className="text-lg font-semibold text-white">🐣 Partos / Nascimentos ({birthRecords.length})</h3>
+          <form action={async (fd: FormData) => {
+            'use server';
+            fd.set('animalId', String(animalId));
+            await registerBirth(fd);
+          }} className="flex flex-wrap gap-2 items-end border-b border-zinc-800 pb-4">
+            <div className="space-y-1">
+              <label className="text-xs text-zinc-400">Data do parto</label>
+              <input type="date" name="birthDate" defaultValue={today}
+                className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-zinc-400">Sexo da cria</label>
+              <select name="offspringGender"
+                className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500">
+                <option value="">Não identificado</option>
+                <option value="M">Macho</option>
+                <option value="F">Fêmea</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-zinc-400">Status</label>
+              <select name="birthStatus"
+                className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500">
+                <option value="ALIVE">Nasceu vivo</option>
+                <option value="STILLBORN">Natimorto</option>
+              </select>
+            </div>
+            <div className="space-y-1 flex-1 min-w-[120px]">
+              <label className="text-xs text-zinc-400">Observações</label>
+              <input type="text" name="observations" placeholder="Observações..."
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-emerald-500" />
+            </div>
+            <button type="submit"
+              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors">
+              Registrar Parto
+            </button>
+          </form>
+          {birthRecords.length > 0 && (
+            <div className="space-y-2">
+              {birthRecords.map((b) => (
+                <div key={b.id} className="flex items-center justify-between text-sm py-2 border-b border-zinc-800 last:border-0">
+                  <div className="flex flex-wrap gap-2 text-zinc-400">
+                    <span>{fmtDate(b.birthDate)}</span>
+                    {b.offspringGender && <span>• {b.offspringGender === 'M' ? 'Macho' : 'Fêmea'}</span>}
+                    {b.observations && <span className="italic text-zinc-500">• {b.observations}</span>}
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
+                    b.status === 'ALIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                  }`}>
+                    {b.status === 'ALIVE' ? 'Vivo' : 'Natimorto'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Births for non-cows */}
+      {animal.category !== 'VACA' && !animal.isPregnant && birthRecords.length > 0 && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-3">
+          <h3 className="text-lg font-semibold text-white">🐣 Nascimentos ({birthRecords.length})</h3>
+          {birthRecords.map((b) => (
+            <div key={b.id} className="flex items-center justify-between text-sm py-2 border-b border-zinc-800 last:border-0">
+              <div className="flex flex-wrap gap-2 text-zinc-400">
+                <span>{fmtDate(b.birthDate)}</span>
+                {b.offspringGender && <span>• {b.offspringGender === 'M' ? 'Macho' : 'Fêmea'}</span>}
+                {b.observations && <span className="italic text-zinc-500">• {b.observations}</span>}
+              </div>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
+                b.status === 'ALIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+              }`}>
+                {b.status === 'ALIVE' ? 'Vivo' : 'Natimorto'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Transfers */}
       {transfers.length > 0 && (
@@ -298,6 +481,7 @@ export default async function AnimalDetailPage({
                     {tx.toPastureId ? pastureNames[tx.toPastureId] ?? `Pasto #${tx.toPastureId}` : '—'}
                   </span>
                 </div>
+                <span className="text-xs text-zinc-500">{fmtDate(tx.transactionDate)}</span>
                 <input type="date" name="date" defaultValue={tx.transactionDate ?? today}
                   className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500" />
                 <button type="submit" className="px-2 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 text-white rounded transition-colors">
@@ -309,27 +493,6 @@ export default async function AnimalDetailPage({
         </div>
       )}
 
-      {/* Births */}
-      {birthRecords.length > 0 && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-3">
-          <h3 className="text-lg font-semibold text-white">🐣 Nascimentos ({birthRecords.length})</h3>
-          {birthRecords.map((b) => (
-            <div key={b.id} className="flex items-center justify-between text-sm py-2 border-b border-zinc-800 last:border-0">
-              <div className="flex flex-wrap gap-2 text-zinc-400">
-                <span>{b.birthDate ?? '—'}</span>
-                {b.offspringGender && <span>• {b.offspringGender}</span>}
-                {b.observations && <span className="italic text-zinc-500">• {b.observations}</span>}
-              </div>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
-                b.status === 'ALIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-              }`}>
-                {b.status === 'ALIVE' ? 'Vivo' : 'Natimorto'}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Other transactions */}
       {others.length > 0 && (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-3">
@@ -338,27 +501,25 @@ export default async function AnimalDetailPage({
             <div key={tx.id} className="flex items-center justify-between text-sm py-2 border-b border-zinc-800 last:border-0">
               <div className="flex flex-wrap gap-2 text-zinc-400">
                 <span className="text-white">{TX_LABELS[tx.type] ?? tx.type}</span>
-                {tx.monthLabel && <span className="text-zinc-500">• {tx.monthLabel}</span>}
                 {tx.notes && <span className="text-zinc-500 italic">• {tx.notes}</span>}
+                {tx.amount != null && (
+                  <span className={tx.type === 'SALE' ? 'text-blue-400 font-medium' : 'text-red-400 font-medium'}>
+                    • {tx.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </span>
+                )}
               </div>
-              <span className="text-zinc-500 text-xs">{tx.transactionDate ?? ''}</span>
+              <span className="text-zinc-500 text-xs">{fmtDate(tx.transactionDate)}</span>
             </div>
           ))}
         </div>
       )}
 
-      {/* Delete */}
-      <form action={async () => {
-        'use server';
-        await deleteAnimal(animalId);
-      }} className="rounded-xl border border-red-900/30 bg-zinc-900/50 p-6 space-y-3">
+      {/* P07: Delete with confirmation */}
+      <div className="rounded-xl border border-red-900/30 bg-zinc-900/50 p-6 space-y-3">
         <h3 className="text-base font-semibold text-red-400">Zona de perigo</h3>
         <p className="text-sm text-zinc-500">Remove permanentemente o animal e todos os seus registros.</p>
-        <button type="submit"
-          className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-900/40 rounded-lg text-sm font-medium transition-colors">
-          Excluir animal
-        </button>
-      </form>
+        <DeleteAnimalButton id={animalId} />
+      </div>
     </div>
   );
 }

@@ -42,10 +42,13 @@ export default async function PastureHistoricoPage({
   const sp = await searchParams;
   // Which month to highlight / show detail
   const selectedMonth = sp.month || getRecentMonths(1)[0];
-  const monthCount = Math.min(Number(sp.months || 3), 6);
+  // P32: Handle invalid months param (NaN, 0, negative)
+  const rawMonths = parseInt(sp.months || '3', 10);
+  const monthCount = isNaN(rawMonths) || rawMonths < 1 ? 3 : Math.min(rawMonths, 6);
 
   const months = getRecentMonths(monthCount);
-  const allPastures = await db.select().from(pastures).where(eq(pastures.active, true)).orderBy(pastures.name);
+  // P19: Include inactive pastures in historical view (empty rows are hidden anyway)
+  const allPastures = await db.select().from(pastures).orderBy(pastures.name);
 
   // For each month, query how many animals (per category) were in each pasture
   // We compute "as of last day of month" from pastureHistory

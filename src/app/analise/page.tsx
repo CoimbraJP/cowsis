@@ -29,7 +29,10 @@ export default async function AnalisePage({
   const dateTo     = sp.to        || today();
   const pastureFilter = sp.pastureId ? Number(sp.pastureId) : null;
 
-  const allPastures = await db.select().from(pastures).where(eq(pastures.active, true)).orderBy(pastures.name);
+  // P19: Load ALL pastures for name lookups (so inactive pastures show names in history)
+  // P20: Only active pastures shown in the dropdown filter
+  const allPastures = await db.select().from(pastures).orderBy(pastures.name);
+  const activePastures = allPastures.filter(p => p.active);
   const pastureMap  = Object.fromEntries(allPastures.map(p => [p.id, p.name]));
 
   // ── 1. All pasture_history events in range ──────────────────────────────────
@@ -206,7 +209,7 @@ export default async function AnalisePage({
           <select name="pastureId" defaultValue={pastureFilter ?? ''}
             className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500">
             <option value="">Todos os pastos</option>
-            {allPastures.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {activePastures.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
         <button type="submit"

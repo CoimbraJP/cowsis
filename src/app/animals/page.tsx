@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { animals, pastures } from '@/db/schema';
-import { eq, ilike, and, asc, desc, SQL } from 'drizzle-orm';
+import { eq, ilike, and, asc, desc, sql, SQL } from 'drizzle-orm';
 import Link from 'next/link';
 import { Beef, Plus, Search, ArrowUpDown } from 'lucide-react';
 
@@ -50,18 +50,25 @@ export default async function AnimalsPage({
   const sortParam      = sp.sort || 'tag';
   const pregnantOnly   = sp.pregnant === '1';
 
+  const bezerrosMode = sp.bezerros === '1';  // P12: special bezerros filter from dashboard
+
   const conditions: SQL[] = [];
   if (query)          conditions.push(ilike(animals.tagNumber, `%${query}%`));
   if (statusFilter)   conditions.push(eq(animals.status, statusFilter as any));
   if (categoryFilter) conditions.push(eq(animals.category, categoryFilter as any));
+  if (bezerrosMode)   conditions.push(sql`${animals.category} IN ('BEZERRO', 'BEZERRA')`);
   if (pregnantOnly)   conditions.push(eq(animals.isPregnant, true));
+
+  // P14: Numeric sort for tag numbers (treats numeric tags as integers, non-numeric last)
+  const numericTagAsc  = sql`(CASE WHEN animals.tag_number ~ '^[0-9]+$' THEN animals.tag_number::integer ELSE NULL END) ASC NULLS LAST, animals.tag_number ASC`;
+  const numericTagDesc = sql`(CASE WHEN animals.tag_number ~ '^[0-9]+$' THEN animals.tag_number::integer ELSE NULL END) DESC NULLS LAST, animals.tag_number DESC`;
 
   let orderBy: SQL;
   switch (sortParam) {
-    case 'tag_desc':     orderBy = desc(animals.tagNumber); break;
-    case 'pasture':      orderBy = asc(pastures.name);      break;
-    case 'pasture_desc': orderBy = desc(pastures.name);     break;
-    default:             orderBy = asc(animals.tagNumber);  break;
+    case 'tag_desc':     orderBy = numericTagDesc;     break;
+    case 'pasture':      orderBy = asc(pastures.name); break;
+    case 'pasture_desc': orderBy = desc(pastures.name);break;
+    default:             orderBy = numericTagAsc;      break;
   }
 
   const allAnimals = await db
@@ -114,7 +121,8 @@ export default async function AnimalsPage({
         <span className="px-3 py-1 rounded-full text-sm bg-zinc-500/10 text-zinc-400">{totalSold} vendidos</span>
         <span className="px-3 py-1 rounded-full text-sm bg-red-900/20 text-red-500">{totalDead} mortos</span>
         {totalPregnant > 0 && (
-          <Link href={`/animals?pregnant=1`}
+          <Link
+            href={`/animals?pregnant=1${categoryFilter ? `&category=${categoryFilter}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}`}
             className="px-3 py-1 rounded-full text-sm bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 transition-colors">
             🤰 {totalPregnant} prenhas
           </Link>

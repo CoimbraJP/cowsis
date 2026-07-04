@@ -15,7 +15,7 @@ const TX_LABELS: Record<string, string> = {
   ACQUISITION: 'Aquisição', TRANSFER: 'Transferência', VACCINE: 'Vacina',
 };
 const STATUS_LABELS: Record<string, string> = {
-  CONFIRMED: 'Prenha', FAILED: 'Pronto', PENDING: 'Aguardando',
+  CONFIRMED: 'Prenha', FAILED: 'Não prenhou', PENDING: 'Aguardando',   // P25
 };
 
 function firstDayOfMonth() {
@@ -248,10 +248,9 @@ export default async function RelatorioPage({
             {pastureFilter === 'all' ? (
               /* All pastures grouped */
               Object.entries(pastureGrouped).map(([pastName, pAnimals]) => {
-                const animalIds = pAnimals.map(a => a.id);
-                const pInsems = pastureInsems.filter(i =>
-                  pAnimals.some(a => a.tagNumber === i.tagNumber)
-                );
+                // P13: Match insems by pastureId (not tagNumber which can be null/duplicate)
+                const pId = pAnimals[0]?.pastureId;
+                const pInsems = pId != null ? pastureInsems.filter(i => i.pastureId === pId) : [];
                 return (
                   <section key={pastName} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 print-card space-y-4">
                     <h3 className="text-lg font-semibold text-emerald-400 border-b border-zinc-800 pb-2">
@@ -267,6 +266,7 @@ export default async function RelatorioPage({
                 <h3 className="text-lg font-semibold text-emerald-400 border-b border-zinc-800 pb-2">
                   🌿 Pasto: {selectedPastureName} — {pastureAnimals.length} animais
                 </h3>
+                {/* pastureInsems already filtered by currentPastureId in the query */}
                 <PastureAnimalTable animals={pastureAnimals} insems={pastureInsems} />
               </section>
             )}
@@ -461,7 +461,7 @@ function PastureAnimalTable({
   }>;
 }) {
   const STATUS_LABELS_LOCAL: Record<string, string> = {
-    CONFIRMED: 'Prenha', FAILED: 'Pronto', PENDING: 'Aguardando',
+    CONFIRMED: 'Prenha', FAILED: 'Não prenhou', PENDING: 'Aguardando',
   };
   return (
     <div className="space-y-4">

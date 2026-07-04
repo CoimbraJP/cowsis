@@ -7,9 +7,9 @@ import { Syringe, Plus } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  PENDING:   { label: 'Aguardando', color: 'bg-amber-500/10 text-amber-400' },
-  CONFIRMED: { label: 'Prenha',     color: 'bg-emerald-500/10 text-emerald-400' },
-  FAILED:    { label: 'Pronto',     color: 'bg-zinc-500/20 text-zinc-400' },
+  PENDING:   { label: 'Aguardando',  color: 'bg-amber-500/10 text-amber-400' },
+  CONFIRMED: { label: 'Prenha',      color: 'bg-emerald-500/10 text-emerald-400' },
+  FAILED:    { label: 'Não prenhou', color: 'bg-zinc-500/20 text-zinc-400' },   // P25
 };
 
 function getMonthOptions() {
@@ -70,14 +70,14 @@ export default async function InsemsPage({
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
             <Syringe className="h-8 w-8 text-purple-400" />
-            Inseminações
+            Inseminacoes
           </h2>
           <p className="text-zinc-400 mt-1">{nTotal} registros</p>
         </div>
         <Link href="/inseminations/new"
           className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all font-medium">
           <Plus size={18} />
-          Registrar inseminação
+          Registrar inseminacao
         </Link>
       </div>
 
@@ -96,7 +96,7 @@ export default async function InsemsPage({
           <p className="text-2xl font-bold text-white mt-1 tabular-nums">{nConfirmed}</p>
         </div>
         <div className="rounded-xl border border-zinc-700/50 bg-zinc-900/50 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <p className="text-xs text-zinc-400 uppercase tracking-widest">Pronto</p>
+          <p className="text-xs text-zinc-400 uppercase tracking-widest">Nao prenhou</p>
           <p className="text-2xl font-bold text-white mt-1 tabular-nums">{nFailed}</p>
         </div>
       </div>
@@ -113,7 +113,7 @@ export default async function InsemsPage({
           <option value="">Todos os status</option>
           <option value="PENDING">Aguardando</option>
           <option value="CONFIRMED">Prenha</option>
-          <option value="FAILED">Pronto</option>
+          <option value="FAILED">Nao prenhou</option>
         </select>
         <button type="submit"
           className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors">
@@ -126,7 +126,7 @@ export default async function InsemsPage({
         )}
       </form>
 
-      {/* Table — full row clickable */}
+      {/* Table */}
       <div className="rounded-xl border border-zinc-800 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-zinc-900 text-zinc-400 uppercase text-xs tracking-widest">
@@ -134,15 +134,16 @@ export default async function InsemsPage({
               <th className="px-4 py-3 text-left">Data</th>
               <th className="px-4 py-3 text-left">Animal</th>
               <th className="px-4 py-3 text-left">Pasto</th>
-              <th className="px-4 py-3 text-left">Touro / Sêmen</th>
+              <th className="px-4 py-3 text-left">Touro / Semen</th>
               <th className="px-4 py-3 text-left">Status</th>
+              <th className="px-4 py-3 text-left">Pago</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-zinc-500">
-                  Nenhuma inseminação encontrada.
+                <td colSpan={6} className="px-4 py-12 text-center text-zinc-500">
+                  Nenhuma inseminacao encontrada.
                 </td>
               </tr>
             )}
@@ -178,6 +179,13 @@ export default async function InsemsPage({
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${cfg.color}`}>
                         {cfg.label}
                       </span>
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link href={`/animals/${r.animalId}`} className="block">
+                      {r.paid
+                        ? <span className="px-2 py-0.5 rounded text-xs bg-teal-500/10 text-teal-400">Pago</span>
+                        : <span className="text-zinc-600 text-xs">—</span>}
                     </Link>
                   </td>
                 </tr>

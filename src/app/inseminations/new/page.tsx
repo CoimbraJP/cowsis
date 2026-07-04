@@ -64,7 +64,7 @@ export default async function NewInseminationPage() {
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
               <option value="PENDING">Aguardando</option>
               <option value="CONFIRMED">Prenha</option>
-              <option value="FAILED">Pronto</option>
+              <option value="FAILED">Não prenhou</option>
             </select>
           </div>
         </div>
