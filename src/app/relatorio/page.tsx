@@ -2,6 +2,7 @@ import { db } from '@/db';
 import { animals, pastures, inseminations, animalTransactions, pastureHistory } from '@/db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { FileText } from 'lucide-react';
+import Link from 'next/link';
 import { PrintButton } from './PrintButton';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,12 @@ function firstDayOfMonth() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 function today() { return new Date().toISOString().split('T')[0]; }
+function nMonthsAgo(n: number) {
+  const d = new Date(); d.setMonth(d.getMonth() - n); return d.toISOString().split('T')[0];
+}
+function nYearsAgo(n: number) {
+  const d = new Date(); d.setFullYear(d.getFullYear() - n); return d.toISOString().split('T')[0];
+}
 function formatDate(d: string) {
   const [y, m, day] = d.split('-');
   return `${day}/${m}/${y}`;
@@ -194,6 +201,15 @@ export default async function RelatorioPage({
           table th { background: #f4f4f5 !important; color: black !important; }
           table td { color: #333 !important; }
         }
+        @keyframes btn-glow {
+          0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.5);}
+          50%{box-shadow:0 0 12px 4px rgba(34,197,94,0.35);}
+        }
+        .btn-pulse-green {
+          background-color:#22c55e!important;
+          color:#000!important;
+          animation:btn-glow 0.9s ease-in-out infinite;
+        }
       `}</style>
 
       <div className="space-y-6 print-page">
@@ -210,35 +226,56 @@ export default async function RelatorioPage({
               {' · '}Gerado em {now}
             </p>
           </div>
-          <div className="flex gap-3 items-center flex-wrap no-print">
-            <form method="GET" className="flex items-end gap-2 flex-wrap">
-              <div className="space-y-1">
-                <label className="text-xs text-zinc-400 block">De</label>
-                <input type="date" name="from" defaultValue={dateFrom}
-                  className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-zinc-400 block">Até</label>
-                <input type="date" name="to" defaultValue={dateTo}
-                  className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-zinc-400 block">Pasto</label>
-                <select name="pastureId" defaultValue={pastureFilter}
-                  className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500">
-                  <option value="">Relatório geral</option>
-                  <option value="all">Todos os pastos (com animais)</option>
-                  {allPastures.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <button type="submit"
-                className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg text-sm transition-colors">
-                Aplicar
-              </button>
-            </form>
-            <PrintButton />
+          <div className="flex flex-col gap-3 no-print">
+            <div className="flex gap-3 items-center flex-wrap">
+              <form method="GET" className="flex items-end gap-2 flex-wrap">
+                <div className="space-y-1">
+                  <label className="text-xs text-zinc-400 block">De</label>
+                  <input type="date" name="from" defaultValue={dateFrom}
+                    className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-zinc-400 block">Até</label>
+                  <input type="date" name="to" defaultValue={dateTo}
+                    className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-zinc-400 block">Pasto</label>
+                  <select name="pastureId" id="pastureIdSelect" defaultValue={pastureFilter}
+                    className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500">
+                    <option value="">Relatório geral</option>
+                    <option value="all">Todos os pastos (com animais)</option>
+                    {allPastures.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <button type="submit" id="applyBtn"
+                  className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg text-sm transition-colors">
+                  Aplicar
+                </button>
+              </form>
+              <PrintButton />
+            </div>
+            {/* Quick period shortcuts */}
+            <div className="flex gap-2 items-center flex-wrap">
+              <span className="text-xs text-zinc-500">Período rápido:</span>
+              {([
+                { label: '3 meses', from: nMonthsAgo(3) },
+                { label: '6 meses', from: nMonthsAgo(6) },
+                { label: '1 ano',   from: nYearsAgo(1) },
+              ] as { label: string; from: string }[]).map(({ label, from }) => (
+                <Link key={label}
+                  href={`/relatorio?from=${from}&to=${today()}${pastureFilter ? `&pastureId=${pastureFilter}` : ''}`}
+                  className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                    dateFrom === from && dateTo === today()
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                      : 'bg-zinc-800 text-zinc-400 hover:text-white border-zinc-700'
+                  }`}>
+                  {label}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -441,6 +478,18 @@ export default async function RelatorioPage({
           COWSIS · Relatório gerado em {now} · Período: {formatDate(dateFrom)} a {formatDate(dateTo)}
         </div>
       </div>
+      {/* Pulse the Apply button when a pasture is selected */}
+      <script dangerouslySetInnerHTML={{ __html: `
+        (function(){
+          var s=document.getElementById('pastureIdSelect');
+          var b=document.getElementById('applyBtn');
+          if(!s||!b) return;
+          s.addEventListener('change',function(){
+            if(s.value){b.classList.add('btn-pulse-green');}
+            else{b.classList.remove('btn-pulse-green');}
+          });
+        })();
+      ` }} />
     </>
   );
 }

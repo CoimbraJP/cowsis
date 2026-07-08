@@ -1,7 +1,7 @@
 import { db } from "@/db";
-import { animals, pastures, inseminations, pastureHistory } from "@/db/schema";
+import { animals, pastures, inseminations, pastureHistory, animalTransactions } from "@/db/schema";
 import { sql, eq, and, desc } from "drizzle-orm";
-import { Activity, Beef, Sprout, Trees, Search, TrendingUp, Syringe, ArrowRight } from "lucide-react";
+import { Activity, Beef, Trees, Search, TrendingUp, Syringe, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export default async function DashboardPage({
 }) {
   const sp = await searchParams;
   const query = sp.q?.trim() || "";
-  let stats = { totalAnimals: 0, totalVacas: 0, totalBezerros: 0, activePastures: 0 };
+  let stats = { totalAnimals: 0, activePastures: 0, totalTransactions: 0, totalInseminations: 0 };
   let searchResults: any[] = [];
   let topPastures: any[] = [];
   let monthlyData: { label: string; count: number }[] = [];
@@ -45,14 +45,14 @@ export default async function DashboardPage({
 
   try {
     const [animalsResult] = await db.select({ count: sql<number>`count(*)` }).from(animals).where(eq(animals.status, "ACTIVE"));
-    const [vacasResult] = await db.select({ count: sql<number>`count(*)` }).from(animals).where(and(eq(animals.status, "ACTIVE"), eq(animals.category, "VACA")));
-    const [bezerrosResult] = await db.select({ count: sql<number>`count(*)` }).from(animals).where(sql`status = 'ACTIVE' AND (category = 'BEZERRO' OR category = 'BEZERRA')`);
     const [pasturesResult] = await db.select({ count: sql<number>`count(*)` }).from(pastures).where(eq(pastures.active, true));
+    const [txResult] = await db.select({ count: sql<number>`count(*)` }).from(animalTransactions);
+    const [insemResult] = await db.select({ count: sql<number>`count(*)` }).from(inseminations);
 
-    stats.totalAnimals   = Number(animalsResult?.count || 0);
-    stats.totalVacas     = Number(vacasResult?.count || 0);
-    stats.totalBezerros  = Number(bezerrosResult?.count || 0);
-    stats.activePastures = Number(pasturesResult?.count || 0);
+    stats.totalAnimals        = Number(animalsResult?.count || 0);
+    stats.activePastures      = Number(pasturesResult?.count || 0);
+    stats.totalTransactions   = Number(txResult?.count || 0);
+    stats.totalInseminations  = Number(insemResult?.count || 0);
 
     topPastures = await db
       .select({ id: pastures.id, name: pastures.name, animalCount: sql<number>`count(${animals.id})` })
@@ -104,10 +104,10 @@ export default async function DashboardPage({
       {/* Stat cards */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {[
-          { href: "/animals?status=ACTIVE", label: "Animais Ativos", value: stats.totalAnimals, Icon: Beef, hover: "hover:border-emerald-500/30", iconColor: "group-hover:text-emerald-500" },
-          { href: "/animals?category=VACA&status=ACTIVE", label: "Vacas", value: stats.totalVacas, Icon: Activity, hover: "hover:border-blue-500/30", iconColor: "group-hover:text-blue-400" },
-          { href: "/animals?bezerros=1&status=ACTIVE", label: "Bezerros(as)", value: stats.totalBezerros, Icon: Sprout, hover: "hover:border-amber-500/30", iconColor: "group-hover:text-amber-400" },
+          { href: "/animals?status=ACTIVE", label: "Animais Totais", value: stats.totalAnimals, Icon: Beef, hover: "hover:border-emerald-500/30", iconColor: "group-hover:text-emerald-500" },
           { href: "/pastures", label: "Pastos Ativos", value: stats.activePastures, Icon: Trees, hover: "hover:border-emerald-500/30", iconColor: "group-hover:text-emerald-500" },
+          { href: "/transactions", label: "Movimentações", value: stats.totalTransactions, Icon: Activity, hover: "hover:border-amber-500/30", iconColor: "group-hover:text-amber-400" },
+          { href: "/inseminations", label: "Inseminações", value: stats.totalInseminations, Icon: Syringe, hover: "hover:border-purple-500/30", iconColor: "group-hover:text-purple-400" },
         ].map(({ href, label, value, Icon, hover, iconColor }) => (
           <Link key={href} href={href} className={`group rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-5 flex flex-col gap-3 ${hover} hover:bg-zinc-900/80 transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]`}>
             <div className="flex items-center justify-between">
