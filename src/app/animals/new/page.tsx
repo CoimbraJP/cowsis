@@ -9,10 +9,12 @@ export const dynamic = 'force-dynamic';
 export default async function NewAnimalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pastureId?: string }>;
+  searchParams: Promise<{ pastureId?: string; error?: string; tag?: string }>;
 }) {
   const sp = await searchParams;
   const preselectedPastureId = sp.pastureId || '';
+  const isDuplicateTag = sp.error === 'duplicate_tag';
+  const duplicateTag = sp.tag || '';
   const allPastures = await db.select().from(pastures).orderBy(pastures.name);
   const today = new Date().toISOString().split('T')[0];
 
@@ -24,6 +26,12 @@ export default async function NewAnimalPage({
         </Link>
         <h2 className="text-2xl font-bold text-white">Novo Animal</h2>
       </div>
+
+      {isDuplicateTag && (
+        <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
+          ⚠️ Já existe um animal com o brinco <strong className="text-red-300">#{duplicateTag}</strong>. Cada brinco deve ser único.
+        </div>
+      )}
 
       <form action={createAnimal} className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
         <div className="grid grid-cols-2 gap-4">

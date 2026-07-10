@@ -27,10 +27,15 @@ const TX_LABELS: Record<string, string> = {
 
 export default async function AnimalDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string; tag?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const isDuplicateTag = sp.error === 'duplicate_tag';
+  const duplicateTag = sp.tag || '';
   const animalId = Number(id);
   if (isNaN(animalId)) notFound();
 
@@ -83,6 +88,12 @@ export default async function AnimalDetailPage({
 
   return (
     <div className="max-w-2xl space-y-6">
+      {isDuplicateTag && (
+        <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
+          ⚠️ Já existe um animal com o brinco <strong className="text-red-300">#{duplicateTag}</strong>. Cada brinco deve ser único — a alteração não foi salva.
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/animals" className="text-zinc-400 hover:text-white transition-colors">

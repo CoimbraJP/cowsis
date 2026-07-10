@@ -64,6 +64,15 @@ export async function updateAnimal(id: number, formData: FormData) {
   const healthNotes = (formData.get('healthNotes') as string)?.trim() || null;
   const isPregnant = formData.get('isPregnant') === 'true';
 
+  // Check for duplicate tag number (excluding this animal)
+  if (tagNumber) {
+    const [dupTag] = await db.select({ id: animals.id }).from(animals)
+      .where(and(eq(animals.tagNumber, tagNumber), ne(animals.id, id))).limit(1);
+    if (dupTag) {
+      redirect(`/animals/${id}?error=duplicate_tag&tag=${encodeURIComponent(tagNumber)}`);
+    }
+  }
+
   // Fetch current state to detect changes (P08, P09)
   const [current] = await db
     .select({ status: animals.status, currentPastureId: animals.currentPastureId })

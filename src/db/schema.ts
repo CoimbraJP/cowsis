@@ -17,7 +17,7 @@ export const pastures = pgTable('pastures', {
 
 export const animals = pgTable('animals', {
   id: serial('id').primaryKey(),
-  tagNumber: varchar('tag_number', { length: 100 }),
+  tagNumber: varchar('tag_number', { length: 100 }).unique(),
   category: animalCategoryEnum('category').notNull(),
   status: animalStatusEnum('status').default('ACTIVE').notNull(),
   currentPastureId: integer('current_pasture_id').references(() => pastures.id),
