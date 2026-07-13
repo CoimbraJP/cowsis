@@ -540,3 +540,11 @@ export default async function AnimalDetailPage({
     </div>
   );
 }
+e="rounded-xl border border-red-900/30 bg-zinc-900/50 p-6 space-y-3">
+        <h3 className="text-base font-semibold text-red-400">Zona de perigo</h3>
+        <p className="text-sm text-zinc-500">Remove permanentemente o animal e todos os seus registros.</p>
+        <DeleteAnimalButton id={animalId} />
+      </div>
+    </div>
+  );
+}

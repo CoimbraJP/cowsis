@@ -149,11 +149,20 @@ export default async function AnimalsPage({
           </h2>
           <p className="text-zinc-400 mt-1">{allAnimals.length} encontrados</p>
         </div>
-        <Link href="/animals/new"
-          className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all font-medium">
-          <Plus size={18} />
-          Novo Animal
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/animals?noPasture=1"
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all font-medium text-sm ${noPastureMode ? 'bg-amber-500 text-white' : 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25'}`}>
+            Sem Pasto
+            {totalNoPasture > 0 && (
+              <span className="bg-amber-500/30 text-amber-200 text-xs px-1.5 py-0.5 rounded-full">{totalNoPasture}</span>
+            )}
+          </Link>
+          <Link href="/animals/new"
+            className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all font-medium">
+            <Plus size={18} />
+            Novo Animal
+          </Link>
+        </div>
       </div>
 
       {/* Stat pills */}
@@ -162,12 +171,7 @@ export default async function AnimalsPage({
           className={`px-3 py-1 rounded-full text-sm transition-colors ${statusFilter === 'ACTIVE' && !noPastureMode ? 'bg-emerald-500/30 text-emerald-300 ring-1 ring-emerald-500/50' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'}`}>
           {totalActive} ativos
         </Link>
-        <Link href="/animals?noPasture=1"
-          className={`px-3 py-1 rounded-full text-sm transition-colors ${noPastureMode ? 'bg-amber-500/30 text-amber-300 ring-1 ring-amber-500/50' : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'}`}
-          title="Animais ativos sem pasto">
-          {totalNoPasture} sem pasto
-        </Link>
-        <Link href="/animals?status=SOLD"
+<Link href="/animals?status=SOLD"
           className={`px-3 py-1 rounded-full text-sm transition-colors ${statusFilter === 'SOLD' && !deadDays ? 'bg-zinc-500/30 text-zinc-200 ring-1 ring-zinc-500/50' : 'bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20'}`}>
           {totalSold} vendidos
         </Link>
@@ -178,15 +182,15 @@ export default async function AnimalsPage({
             {totalDead} mortos
           </Link>
           <Link href="/animals?deadDays=30"
-            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${deadDays === 30 ? 'bg-red-700/40 text-red-300 ring-1 ring-red-500/40' : 'bg-red-900/10 text-red-600 hover:bg-red-900/20'}`}>
+            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${deadDays === 30 ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40' : 'bg-zinc-700/50 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'}`}>
             30d
           </Link>
           <Link href="/animals?deadDays=60"
-            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${deadDays === 60 ? 'bg-red-700/40 text-red-300 ring-1 ring-red-500/40' : 'bg-red-900/10 text-red-600 hover:bg-red-900/20'}`}>
+            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${deadDays === 60 ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40' : 'bg-zinc-700/50 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'}`}>
             60d
           </Link>
           <Link href="/animals?deadDays=90"
-            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${deadDays === 90 ? 'bg-red-700/40 text-red-300 ring-1 ring-red-500/40' : 'bg-red-900/10 text-red-600 hover:bg-red-900/20'}`}>
+            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${deadDays === 90 ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40' : 'bg-zinc-700/50 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'}`}>
             90d
           </Link>
         </div>
