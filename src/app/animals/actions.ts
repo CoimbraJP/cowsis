@@ -13,6 +13,8 @@ export async function createAnimal(formData: FormData) {
   const pastureId = currentPastureId ? Number(currentPastureId) : null;
   const origin = (formData.get('origin') as string) || '';
   const originDate = (formData.get('originDate') as string) || new Date().toISOString().split('T')[0];
+  const rawFrom = (formData.get('from') as string)?.trim() || '';
+  const safeFrom = rawFrom.startsWith('/') ? rawFrom : '/animals';
 
   // P17: Check for duplicate tag number
   if (tagNumber) {
@@ -52,7 +54,8 @@ export async function createAnimal(formData: FormData) {
 
   revalidatePath('/animals');
   revalidatePath('/pastures');
-  redirect(`/animals/${created.id}`);
+  const destFrom = safeFrom.includes('?') ? `${safeFrom}&success=created` : `${safeFrom}?success=created`;
+  redirect(destFrom);
 }
 
 export async function updateAnimal(id: number, formData: FormData) {
@@ -279,6 +282,8 @@ export async function registerEvent(formData: FormData) {
   const transactionDate = (formData.get('transactionDate') as string) || new Date().toISOString().split('T')[0];
   const amountStr = formData.get('amount') as string | null;
   const notes = (formData.get('notes') as string)?.trim() || null;
+  const rawFrom = (formData.get('from') as string)?.trim() || '';
+  const safeFrom = rawFrom.startsWith('/') ? rawFrom : '/animals';
 
   if (!animalId || !type) return;
 
@@ -315,6 +320,8 @@ export async function registerEvent(formData: FormData) {
   revalidatePath('/animals');
   revalidatePath('/transactions');
   revalidatePath('/pastures');
+  const destFrom = safeFrom.includes('?') ? `${safeFrom}&success=death` : `${safeFrom}?success=death`;
+  redirect(destFrom);
 }
 
 // P03: Register a birth/parto

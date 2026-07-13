@@ -9,19 +9,20 @@ export const dynamic = 'force-dynamic';
 export default async function NewAnimalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pastureId?: string; error?: string; tag?: string }>;
+  searchParams: Promise<{ pastureId?: string; error?: string; tag?: string; from?: string }>;
 }) {
   const sp = await searchParams;
   const preselectedPastureId = sp.pastureId || '';
   const isDuplicateTag = sp.error === 'duplicate_tag';
   const duplicateTag = sp.tag || '';
+  const from = sp.from || '/animals';
   const allPastures = await db.select().from(pastures).orderBy(pastures.name);
   const today = new Date().toISOString().split('T')[0];
 
   return (
     <div className="max-w-lg space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/animals" className="text-zinc-400 hover:text-white transition-colors">
+        <Link href={from} className="text-zinc-400 hover:text-white transition-colors">
           <ArrowLeft size={20} />
         </Link>
         <h2 className="text-2xl font-bold text-white">Novo Animal</h2>
@@ -34,6 +35,9 @@ export default async function NewAnimalPage({
       )}
 
       <form action={createAnimal} className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+        {/* Pass from so createAnimal can redirect back */}
+        <input type="hidden" name="from" value={from} />
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-sm text-zinc-400">Brinco (número)</label>
@@ -89,7 +93,7 @@ export default async function NewAnimalPage({
             className="flex-1 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white py-2.5 rounded-lg font-medium transition-all">
             Salvar
           </button>
-          <Link href="/animals"
+          <Link href={from}
             className="flex-1 text-center bg-zinc-700 hover:bg-zinc-600 text-white py-2.5 rounded-lg font-medium transition-colors">
             Cancelar
           </Link>

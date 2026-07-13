@@ -30,12 +30,14 @@ export default async function AnimalDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; tag?: string }>;
+  searchParams: Promise<{ error?: string; tag?: string; from?: string; success?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
   const isDuplicateTag = sp.error === 'duplicate_tag';
   const duplicateTag = sp.tag || '';
+  const from = sp.from && sp.from.startsWith('/') ? sp.from : '/animals';
+  const successMsg = sp.success;
   const animalId = Number(id);
   if (isNaN(animalId)) notFound();
 
@@ -94,9 +96,16 @@ export default async function AnimalDetailPage({
         </div>
       )}
 
+      {/* Success banner */}
+      {successMsg && (
+        <div className="rounded-lg border border-emerald-700/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-300 flex items-center gap-2">
+          ✅ {successMsg === 'death' ? 'Evento registrado com sucesso!' : 'Animal salvo com sucesso!'}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href="/animals" className="text-zinc-400 hover:text-white transition-colors">
+        <Link href={from} className="text-zinc-400 hover:text-white transition-colors">
           <ArrowLeft size={20} />
         </Link>
         <h2 className="text-2xl font-bold text-white">
@@ -216,6 +225,7 @@ export default async function AnimalDetailPage({
             fd.set('animalId', String(animalId));
             await registerEvent(fd);
           }} className="flex flex-wrap gap-3 items-end">
+            <input type="hidden" name="from" value={from} />
             <div className="space-y-1">
               <label className="text-xs text-zinc-400">Tipo</label>
               <select name="type"
@@ -519,18 +529,14 @@ export default async function AnimalDetailPage({
                   </span>
                 )}
               </div>
-              <span className="text-zinc-500 text-xs">{fmtDate(tx.transactionDate)}</span>
+              <span className="text-zinc-500 text-xs tabular-nums">
+                {fmtDate(tx.transactionDate)}
+              </span>
             </div>
           ))}
         </div>
       )}
 
-      {/* P07: Delete with confirmation */}
-      <div className="rounded-xl border border-red-900/30 bg-zinc-900/50 p-6 space-y-3">
-        <h3 className="text-base font-semibold text-red-400">Zona de perigo</h3>
-        <p className="text-sm text-zinc-500">Remove permanentemente o animal e todos os seus registros.</p>
-        <DeleteAnimalButton id={animalId} />
-      </div>
     </div>
   );
 }

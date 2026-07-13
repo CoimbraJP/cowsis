@@ -1,9 +1,9 @@
 import { db } from '@/db';
 import { pastures, animals, pastureHistory, animalTransactions } from '@/db/schema';
-import { eq, and, lte, or, isNull, sql, desc } from 'drizzle-orm';
+import { eq, and, lte, or, isNull, sql, desc, asc } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Trees, Clock, Plus, History } from 'lucide-react';
+import { ArrowLeft, Trees, Clock, Plus, History, ArrowUpDown } from 'lucide-react';
 import { moveAnimalToPasture } from '@/app/animals/actions';
 import { DeletePastureButton } from './DeletePastureButton';
 import { EditPastureButton } from './EditPastureButton';
@@ -21,28 +21,9 @@ const CATEGORY_COLORS: Record<string, string> = {
   'BÚFALA': 'bg-cyan-500/10 text-cyan-400',
 };
 
-const TX_TYPE_LABEL: Record<string, string> = {
-  TRANSFER:    'Transferência',
-  BIRTH:       'Parto',
-  DEATH:       'Morte',
-  SALE:        'Venda',
-  ACQUISITION: 'Aquisição',
-  VACCINE:     'Vacina',
-};
-
-const TX_TYPE_COLOR: Record<string, string> = {
-  TRANSFER:    'text-blue-400',
-  BIRTH:       'text-pink-400',
-  DEATH:       'text-red-400',
-  SALE:        'text-amber-400',
-  ACQUISITION: 'text-emerald-400',
-  VACCINE:     'text-teal-400',
-};
-
 function lastDayOfMonth(ym: string) {
   const [y, m] = ym.split('-').map(Number);
-  const last = new Date(y, m, 0);
-  return last.toISOString().split('T')[0];
+  return new Date(y, m, 0).toISOString().split('T')[0];
 }
 
 export default async function PastureDetailPage({
@@ -50,7 +31,7 @@ export default async function PastureDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; sort?: string; success?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -62,7 +43,13 @@ export default async function PastureDetailPage({
 
   const periodFilter = sp.period || '';
   const isHistorical = !!periodFilter;
+  const sortParam = sp.sort || 'tag';
   const today = new Date().toISOString().split('T')[0];
+
+  // Numeric sort for brincos
+  const numericTagAsc  = sql`(CASE WHEN ${animals.tagNumber} ~ '^[0-9]+$' THEN ${animals.tagNumber}::integer ELSE NULL END) ASC NULLS LAST, ${animals.tagNumber} ASC`;
+  const numericTagDesc = sql`(CASE WHEN ${animals.tagNumber} ~ '^[0-9]+$' THEN ${animals.tagNumber}::integer ELSE NULL END) DESC NULLS LAST, ${animals.tagNumber} DESC`;
+  const tagOrder = sortParam === 'tag_desc' ? numericTagDesc : numericTagAsc;
 
   let pastureAnimals: Array<{ id: number; tagNumber: string | null; category: string; status: string; isPregnant?: boolean | null }> = [];
 
@@ -77,20 +64,19 @@ export default async function PastureDetailPage({
         lte(pastureHistory.enteredAt, asOfDate),
         or(isNull(pastureHistory.exitedAt), sql`${pastureHistory.exitedAt} > ${asOfDate}`)
       ))
-      .orderBy(animals.tagNumber);
+      .orderBy(tagOrder);
     pastureAnimals = rows as any;
   } else {
     const rows = await db
       .select({ id: animals.id, tagNumber: animals.tagNumber, category: animals.category, status: animals.status, isPregnant: animals.isPregnant })
       .from(animals)
       .where(eq(animals.currentPastureId, pastureId))
-      .orderBy(animals.tagNumber);
+      .orderBy(tagOrder);
     pastureAnimals = rows as any;
   }
 
   const allPastures = await db.select().from(pastures).orderBy(pastures.name);
 
-  // Split into main animals and bezerros
   const BEZERRO_CATS = ['BEZERRO', 'BEZERRA'];
   const mainAnimals = pastureAnimals.filter((a) => !BEZERRO_CATS.includes(a.category));
   const bezerros = pastureAnimals.filter((a) => BEZERRO_CATS.includes(a.category));
@@ -105,7 +91,6 @@ export default async function PastureDetailPage({
     .orderBy(sql`1 desc`)
     .limit(12);
 
-  // Timeline: transactions involving this pasture
   const timeline = await db
     .select({
       txId: animalTransactions.id,
@@ -131,9 +116,8 @@ export default async function PastureDetailPage({
       ),
     )
     .orderBy(desc(animalTransactions.transactionDate))
-    .limit(100);
+    .limit(150);
 
-  // Group timeline by date
   const timelineByDate = new Map<string, typeof timeline>();
   for (const tx of timeline) {
     const dateKey = tx.transactionDate ?? 'Sem data';
@@ -141,19 +125,37 @@ export default async function PastureDetailPage({
     timelineByDate.get(dateKey)!.push(tx);
   }
 
-  // Pasture name map
   const pastureNameMap = new Map(allPastures.map((p) => [p.id, p.name]));
 
-  function AnimalTable({ list, showMove }: { list: typeof pastureAnimals; showMove: boolean }) {
+  // Sort link helper for brinco column
+  const sortHref = (base: string) => {
+    const next = sortParam === 'tag' ? 'tag_desc' : 'tag';
+    const q = new URLSearchParams();
+    if (periodFilter) q.set('period', periodFilter);
+    q.set('sort', next);
+    return `${base}?${q.toString()}`;
+  };
+  const sortIcon = sortParam === 'tag' ? ' ↑' : sortParam === 'tag_desc' ? ' ↓' : '';
+
+  function AnimalTable({ list }: { list: typeof pastureAnimals }) {
     return (
       <div className="rounded-xl border border-zinc-800 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-zinc-900 text-zinc-400 uppercase text-xs tracking-wider">
             <tr>
-              <th className="px-4 py-3 text-left">Brinco</th>
+              <th className="px-4 py-3 text-left">
+                <Link
+                  href={sortHref(`/pastures/${pastureId}`)}
+                  className="flex items-center gap-1 hover:text-white transition-colors group"
+                >
+                  Brinco
+                  <ArrowUpDown size={11} className="opacity-50 group-hover:opacity-100" />
+                  <span className="text-emerald-400">{sortIcon}</span>
+                </Link>
+              </th>
               <th className="px-4 py-3 text-left">Categoria</th>
               <th className="px-4 py-3 text-left">Status</th>
-              {!isHistorical && showMove && <th className="px-4 py-3 text-left w-80">Mover para pasto</th>}
+              {!isHistorical && <th className="px-4 py-3 text-left">Mover</th>}
               <th className="px-4 py-3 text-right">Ver</th>
             </tr>
           </thead>
@@ -185,30 +187,30 @@ export default async function PastureDetailPage({
                     {animal.status === 'ACTIVE' ? 'Ativo' : animal.status === 'SOLD' ? 'Vendido' : 'Morto'}
                   </span>
                 </td>
-                {!isHistorical && showMove && (
+                {!isHistorical && (
                   <td className="px-4 py-3">
                     <form action={async (fd: FormData) => {
                       'use server';
                       const targetId = fd.get('targetPastureId');
                       const moveDate = fd.get('moveDate') as string | null;
                       await moveAnimalToPasture(animal.id, pastureId, targetId ? Number(targetId) : null, moveDate);
-                    }} className="flex items-center gap-2 flex-wrap">
+                    }} className="flex items-center gap-1.5">
                       <select name="targetPastureId" defaultValue={pastureId}
-                        className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500">
+                        className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500 max-w-[140px]">
                         <option value="">— Sem pasto —</option>
                         {allPastures.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                       <input type="date" name="moveDate" defaultValue={today}
-                        className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500" />
+                        className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500 w-32" />
                       <button type="submit"
-                        className="px-2 py-1 text-xs bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded transition-colors font-medium">
+                        className="px-2 py-1 text-xs bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded transition-colors font-medium whitespace-nowrap">
                         Mover
                       </button>
                     </form>
                   </td>
                 )}
                 <td className="px-4 py-3 text-right">
-                  <Link href={`/animals/${animal.id}`}
+                  <Link href={`/animals/${animal.id}?from=/pastures/${pastureId}`}
                     className="text-zinc-400 hover:text-emerald-400 transition-colors text-xs px-2 py-1 rounded hover:bg-zinc-800">
                     Ver
                   </Link>
@@ -223,6 +225,13 @@ export default async function PastureDetailPage({
 
   return (
     <div className="space-y-6">
+      {/* Success banner */}
+      {sp.success && (
+        <div className="rounded-lg border border-emerald-700/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-300 flex items-center gap-2">
+          ✅ {sp.success === 'created' ? 'Animal salvo com sucesso!' : sp.success === 'death' ? 'Evento registrado com sucesso!' : 'Salvo com sucesso!'}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
@@ -243,7 +252,7 @@ export default async function PastureDetailPage({
           <EditPastureButton id={pastureId} currentName={pasture.name} />
           <DeletePastureButton id={pastureId} />
           <Link
-            href={`/animals/new?pastureId=${pastureId}`}
+            href={`/animals/new?pastureId=${pastureId}&from=/pastures/${pastureId}`}
             className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all font-medium text-sm"
           >
             <Plus size={16} />
@@ -256,12 +265,12 @@ export default async function PastureDetailPage({
       <div className="flex items-center gap-3 flex-wrap">
         <Clock size={16} className="text-zinc-500" />
         <span className="text-sm text-zinc-400">Composição em:</span>
-        <Link href={`/pastures/${pastureId}`}
+        <Link href={`/pastures/${pastureId}${sortParam !== 'tag' ? `?sort=${sortParam}` : ''}`}
           className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${!isHistorical ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
           Hoje
         </Link>
         {historyMonths.map(({ month }) => (
-          <Link key={month} href={`/pastures/${pastureId}?period=${month}`}
+          <Link key={month} href={`/pastures/${pastureId}?period=${month}${sortParam !== 'tag' ? `&sort=${sortParam}` : ''}`}
             className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${periodFilter === month ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
             {month}
           </Link>
@@ -290,7 +299,7 @@ export default async function PastureDetailPage({
         <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
           Animais ({mainAnimals.length})
         </h3>
-        <AnimalTable list={mainAnimals} showMove={true} />
+        <AnimalTable list={mainAnimals} />
       </div>
 
       {/* Bezerros section */}
@@ -299,7 +308,7 @@ export default async function PastureDetailPage({
           <h3 className="text-xs font-semibold text-amber-500/80 uppercase tracking-wider">
             Bezerros ({bezerros.length})
           </h3>
-          <AnimalTable list={bezerros} showMove={true} />
+          <AnimalTable list={bezerros} />
         </div>
       )}
 
@@ -319,26 +328,66 @@ export default async function PastureDetailPage({
             {Array.from(timelineByDate.entries()).map(([dateKey, txs]) => (
               <div key={dateKey} className="px-4 py-3">
                 <p className="text-[11px] font-semibold text-zinc-600 uppercase tracking-wider mb-2">{dateKey}</p>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {txs.map((tx) => {
-                    const direction =
-                      tx.type === 'TRANSFER'
-                        ? tx.toPastureId === pastureId
-                          ? `← entrada de ${pastureNameMap.get(tx.fromPastureId ?? 0) ?? 'outro pasto'}`
-                          : `→ saída para ${pastureNameMap.get(tx.toPastureId ?? 0) ?? 'outro pasto'}`
-                        : null;
+                    const isEntrada = tx.type === 'TRANSFER' && tx.toPastureId === pastureId;
+                    const isSaida   = tx.type === 'TRANSFER' && tx.fromPastureId === pastureId;
+
+                    let label = '';
+                    let labelColor = '';
+                    let description = '';
+
+                    if (isEntrada) {
+                      label = '↓ Entrada';
+                      labelColor = 'text-emerald-400 bg-emerald-500/10';
+                      const origem = pastureNameMap.get(tx.fromPastureId ?? 0);
+                      description = origem ? `vindo de ${origem}` : 'transferência recebida';
+                    } else if (isSaida) {
+                      label = '↑ Saída';
+                      labelColor = 'text-red-400 bg-red-500/10';
+                      const destino = pastureNameMap.get(tx.toPastureId ?? 0);
+                      description = destino ? `foi para ${destino}` : 'transferência enviada';
+                    } else if (tx.type === 'BIRTH') {
+                      label = '🐄 Parto';
+                      labelColor = 'text-pink-400 bg-pink-500/10';
+                      description = tx.notes ?? '';
+                    } else if (tx.type === 'DEATH') {
+                      label = '💀 Morte';
+                      labelColor = 'text-red-500 bg-red-900/20';
+                      description = tx.notes ?? '';
+                    } else if (tx.type === 'SALE') {
+                      label = '💰 Venda';
+                      labelColor = 'text-amber-400 bg-amber-500/10';
+                      description = tx.notes ?? '';
+                    } else if (tx.type === 'VACCINE') {
+                      label = '💉 Vacina';
+                      labelColor = 'text-teal-400 bg-teal-500/10';
+                      description = tx.notes ?? '';
+                    } else if (tx.type === 'ACQUISITION') {
+                      label = '✅ Aquisição';
+                      labelColor = 'text-emerald-400 bg-emerald-500/10';
+                      description = tx.notes ?? '';
+                    } else {
+                      label = tx.type;
+                      labelColor = 'text-zinc-400 bg-zinc-700';
+                      description = tx.notes ?? '';
+                    }
 
                     return (
-                      <div key={tx.txId} className="flex items-start gap-3 text-sm">
-                        <span className={`text-xs font-medium mt-0.5 ${TX_TYPE_COLOR[tx.type] ?? 'text-zinc-500'}`}>
-                          {TX_TYPE_LABEL[tx.type] ?? tx.type}
+                      <div key={tx.txId} className="flex items-center gap-3 text-sm">
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded whitespace-nowrap ${labelColor}`}>
+                          {label}
                         </span>
-                        <Link href={`/animals/${tx.animalId}`} className="text-white hover:text-emerald-400 transition-colors font-mono text-xs">
+                        <Link href={`/animals/${tx.animalId}?from=/pastures/${pastureId}`}
+                          className="font-mono text-xs text-white hover:text-emerald-400 transition-colors">
                           {tx.tagNumber ? `#${tx.tagNumber}` : 'S/N'}
                         </Link>
                         <span className="text-zinc-500 text-xs">{tx.category}</span>
-                        {direction && <span className="text-zinc-600 text-xs">{direction}</span>}
-                        {tx.notes && <span className="text-zinc-600 text-xs truncate max-w-xs">{tx.notes}</span>}
+                        {description && (
+                          <span className={`text-xs ${isSaida ? 'text-red-500/70' : isEntrada ? 'text-emerald-600' : 'text-zinc-600'}`}>
+                            {description}
+                          </span>
+                        )}
                       </div>
                     );
                   })}

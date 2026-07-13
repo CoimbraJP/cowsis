@@ -1,6 +1,6 @@
 import { db } from '@/db';
-import { animals, pastures } from '@/db/schema';
-import { eq, ilike, and, asc, desc, sql, SQL } from 'drizzle-orm';
+import { animals, animalTransactions, pastures } from '@/db/schema';
+import { eq, ilike, and, asc, desc, sql, SQL, inArray, gte, isNull } from 'drizzle-orm';
 import Link from 'next/link';
 import { Beef, Plus, Search, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { moveAnimalToPasture } from './actions';
@@ -42,7 +42,7 @@ function sortIcon(s: string, k: string) {
 export default async function AnimalsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; category?: string; sort?: string; pregnant?: string; bezerros?: string; pastureId?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; category?: string; sort?: string; pregnant?: string; bezerros?: string; pastureId?: string; noPasture?: string; deadDays?: string; success?: string }>;
 }) {
   const sp = await searchParams;
   const query          = sp.q?.trim() || '';
@@ -52,14 +52,40 @@ export default async function AnimalsPage({
   const pregnantOnly   = sp.pregnant === '1';
   const pastureFilter  = sp.pastureId || '';
   const bezerrosMode   = sp.bezerros === '1';
+  const noPastureMode  = sp.noPasture === '1';
+  const deadDays       = sp.deadDays ? Number(sp.deadDays) : 0;
+  const successMsg     = sp.success;
+
+  // If deadDays set, find animal IDs that died in that window
+  let deadAnimalIds: number[] = [];
+  if (deadDays > 0) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - deadDays);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    const rows = await db
+      .selectDistinct({ animalId: animalTransactions.animalId })
+      .from(animalTransactions)
+      .where(and(
+        eq(animalTransactions.type, 'DEATH'),
+        gte(animalTransactions.transactionDate, cutoffStr),
+      ));
+    deadAnimalIds = rows.map(r => r.animalId);
+  }
 
   const conditions: SQL[] = [];
   if (query)          conditions.push(ilike(animals.tagNumber, `%${query}%`));
-  if (statusFilter)   conditions.push(eq(animals.status, statusFilter as any));
+  if (deadDays > 0) {
+    conditions.push(eq(animals.status, 'DEAD'));
+    if (deadAnimalIds.length > 0) conditions.push(inArray(animals.id, deadAnimalIds));
+    else conditions.push(sql`1=0`); // no results if no matching deaths
+  } else if (statusFilter) {
+    conditions.push(eq(animals.status, statusFilter as any));
+  }
   if (categoryFilter) conditions.push(eq(animals.category, categoryFilter as any));
   if (bezerrosMode)   conditions.push(sql`${animals.category} IN ('BEZERRO', 'BEZERRA')`);
   if (pregnantOnly)   conditions.push(eq(animals.isPregnant, true));
   if (pastureFilter)  conditions.push(eq(animals.currentPastureId, Number(pastureFilter)));
+  if (noPastureMode)  { conditions.push(isNull(animals.currentPastureId)); conditions.push(eq(animals.status, 'ACTIVE')); }
 
   // P14: Numeric sort for tag numbers
   const numericTagAsc  = sql`(CASE WHEN animals.tag_number ~ '^[0-9]+$' THEN animals.tag_number::integer ELSE NULL END) ASC NULLS LAST, animals.tag_number ASC`;
@@ -91,10 +117,12 @@ export default async function AnimalsPage({
     db.select().from(pastures).orderBy(pastures.name),
   ]);
 
+  // Count for stat pills (unfiltered totals)
   const totalActive   = allAnimals.filter(a => a.status === 'ACTIVE').length;
   const totalSold     = allAnimals.filter(a => a.status === 'SOLD').length;
   const totalDead     = allAnimals.filter(a => a.status === 'DEAD').length;
   const totalPregnant = allAnimals.filter(a => a.isPregnant).length;
+  const totalNoPasture = allAnimals.filter(a => a.status === 'ACTIVE' && !a.pastureId).length;
 
   const baseParams: Record<string, string> = {};
   if (query)          baseParams.q = query;
@@ -105,6 +133,13 @@ export default async function AnimalsPage({
 
   return (
     <div className="space-y-6">
+      {/* Success banner */}
+      {successMsg && (
+        <div className="rounded-lg border border-emerald-700/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-300 flex items-center gap-2">
+          ✅ {successMsg === 'created' ? 'Animal salvo com sucesso!' : successMsg === 'death' ? 'Evento registrado com sucesso!' : 'Salvo com sucesso!'}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -122,13 +157,42 @@ export default async function AnimalsPage({
       </div>
 
       {/* Stat pills */}
-      <div className="flex gap-3 flex-wrap">
-        <span className="px-3 py-1 rounded-full text-sm bg-emerald-500/10 text-emerald-400">{totalActive} ativos</span>
-        <span className="px-3 py-1 rounded-full text-sm bg-zinc-500/10 text-zinc-400">{totalSold} vendidos</span>
-        <span className="px-3 py-1 rounded-full text-sm bg-red-900/20 text-red-500">{totalDead} mortos</span>
+      <div className="flex gap-2 flex-wrap items-center">
+        <Link href="/animals?status=ACTIVE"
+          className={`px-3 py-1 rounded-full text-sm transition-colors ${statusFilter === 'ACTIVE' && !noPastureMode ? 'bg-emerald-500/30 text-emerald-300 ring-1 ring-emerald-500/50' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'}`}>
+          {totalActive} ativos
+        </Link>
+        <Link href="/animals?noPasture=1"
+          className={`px-3 py-1 rounded-full text-sm transition-colors ${noPastureMode ? 'bg-amber-500/30 text-amber-300 ring-1 ring-amber-500/50' : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'}`}
+          title="Animais ativos sem pasto">
+          {totalNoPasture} sem pasto
+        </Link>
+        <Link href="/animals?status=SOLD"
+          className={`px-3 py-1 rounded-full text-sm transition-colors ${statusFilter === 'SOLD' && !deadDays ? 'bg-zinc-500/30 text-zinc-200 ring-1 ring-zinc-500/50' : 'bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20'}`}>
+          {totalSold} vendidos
+        </Link>
+        {/* Mortos + sub-filtros 30/60/90d */}
+        <div className="flex items-center gap-1">
+          <Link href="/animals?status=DEAD"
+            className={`px-3 py-1 rounded-full text-sm transition-colors ${statusFilter === 'DEAD' && !deadDays ? 'bg-red-900/40 text-red-400 ring-1 ring-red-500/40' : 'bg-red-900/20 text-red-500 hover:bg-red-900/30'}`}>
+            {totalDead} mortos
+          </Link>
+          <Link href="/animals?deadDays=30"
+            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${deadDays === 30 ? 'bg-red-700/40 text-red-300 ring-1 ring-red-500/40' : 'bg-red-900/10 text-red-600 hover:bg-red-900/20'}`}>
+            30d
+          </Link>
+          <Link href="/animals?deadDays=60"
+            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${deadDays === 60 ? 'bg-red-700/40 text-red-300 ring-1 ring-red-500/40' : 'bg-red-900/10 text-red-600 hover:bg-red-900/20'}`}>
+            60d
+          </Link>
+          <Link href="/animals?deadDays=90"
+            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${deadDays === 90 ? 'bg-red-700/40 text-red-300 ring-1 ring-red-500/40' : 'bg-red-900/10 text-red-600 hover:bg-red-900/20'}`}>
+            90d
+          </Link>
+        </div>
         {totalPregnant > 0 && (
           <Link
-            href={`/animals?pregnant=1${categoryFilter ? `&category=${categoryFilter}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}`}
+            href={`/animals?pregnant=1`}
             className="px-3 py-1 rounded-full text-sm bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 transition-colors">
             🤰 {totalPregnant} prenhas
           </Link>
@@ -280,18 +344,16 @@ export default async function AnimalsPage({
                             </select>
                             <button
                               type="submit"
-                              className="mt-2 w-full bg-zinc-700 hover:bg-zinc-600 text-white text-xs py-1.5 rounded transition-colors"
-                            >
-                              Confirmar
+                              className="mt-2 w-full bg-zinc-700 hover:bg-zinc-600 text-white text-xs py-1.5 rounded transition-colors">
+                              Mover
                             </button>
                           </form>
                         </div>
                       </details>
                     )}
-
-                    <Link href={`/animals/${animal.id}`}
-                      className="text-zinc-400 hover:text-emerald-400 transition-colors text-xs px-2 py-1 rounded hover:bg-zinc-800">
-                      Editar
+                    <Link href={`/animals/${animal.id}?from=/animals`}
+                      className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors px-2 py-1 rounded border border-zinc-800 hover:border-zinc-700">
+                      Ver
                     </Link>
                   </div>
                 </td>
