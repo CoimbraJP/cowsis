@@ -80,6 +80,26 @@ export const pastureHistory = pgTable('pasture_history', {
   exitedAt:  date('exited_at'),
 });
 
+export const countingSessions = pgTable('counting_sessions', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  startedAt: date('started_at').notNull(),
+  finishedAt: date('finished_at'),
+  status: varchar('status', { length: 50 }).default('ACTIVE').notNull(),
+  notes: text('notes'),
+});
+
+export const countingItems = pgTable('counting_items', {
+  id: serial('id').primaryKey(),
+  sessionId: integer('session_id').references(() => countingSessions.id).notNull(),
+  animalId: integer('animal_id').references(() => animals.id).notNull(),
+  snapshotPastureId: integer('snapshot_pasture_id').references(() => pastures.id),
+  status: varchar('status', { length: 50 }).default('UNTREATED').notNull(),
+  resolvedPastureId: integer('resolved_pasture_id').references(() => pastures.id),
+  notes: text('notes'),
+  updatedAt: date('updated_at'),
+});
+
 // Relations
 export const pasturesRelations = relations(pastures, ({ many }) => ({
   animals: many(animals),
@@ -157,5 +177,30 @@ export const pastureHistoryRelations = relations(pastureHistory, ({ one }) => ({
   pasture: one(pastures, {
     fields: [pastureHistory.pastureId],
     references: [pastures.id],
+  }),
+}));
+
+export const countingSessionsRelations = relations(countingSessions, ({ many }) => ({
+  items: many(countingItems),
+}));
+
+export const countingItemsRelations = relations(countingItems, ({ one }) => ({
+  session: one(countingSessions, {
+    fields: [countingItems.sessionId],
+    references: [countingSessions.id],
+  }),
+  animal: one(animals, {
+    fields: [countingItems.animalId],
+    references: [animals.id],
+  }),
+  snapshotPasture: one(pastures, {
+    fields: [countingItems.snapshotPastureId],
+    references: [pastures.id],
+    relationName: 'snapshotPasture',
+  }),
+  resolvedPasture: one(pastures, {
+    fields: [countingItems.resolvedPastureId],
+    references: [pastures.id],
+    relationName: 'resolvedPasture',
   }),
 }));

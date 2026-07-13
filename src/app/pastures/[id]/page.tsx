@@ -1,9 +1,9 @@
 import { db } from '@/db';
-import { pastures, animals, pastureHistory } from '@/db/schema';
-import { eq, and, lte, or, isNull, sql } from 'drizzle-orm';
+import { pastures, animals, pastureHistory, animalTransactions } from '@/db/schema';
+import { eq, and, lte, or, isNull, sql, desc } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Trees, Clock, Plus } from 'lucide-react';
+import { ArrowLeft, Trees, Clock, Plus, History } from 'lucide-react';
 import { moveAnimalToPasture } from '@/app/animals/actions';
 import { DeletePastureButton } from './DeletePastureButton';
 import { EditPastureButton } from './EditPastureButton';
@@ -19,6 +19,24 @@ const CATEGORY_COLORS: Record<string, string> = {
   NOVILHO:  'bg-pink-500/10 text-pink-400',
   'BÚFALO': 'bg-teal-500/10 text-teal-400',
   'BÚFALA': 'bg-cyan-500/10 text-cyan-400',
+};
+
+const TX_TYPE_LABEL: Record<string, string> = {
+  TRANSFER:    'Transferência',
+  BIRTH:       'Parto',
+  DEATH:       'Morte',
+  SALE:        'Venda',
+  ACQUISITION: 'Aquisição',
+  VACCINE:     'Vacina',
+};
+
+const TX_TYPE_COLOR: Record<string, string> = {
+  TRANSFER:    'text-blue-400',
+  BIRTH:       'text-pink-400',
+  DEATH:       'text-red-400',
+  SALE:        'text-amber-400',
+  ACQUISITION: 'text-emerald-400',
+  VACCINE:     'text-teal-400',
 };
 
 function lastDayOfMonth(ym: string) {
@@ -72,6 +90,11 @@ export default async function PastureDetailPage({
 
   const allPastures = await db.select().from(pastures).orderBy(pastures.name);
 
+  // Split into main animals and bezerros
+  const BEZERRO_CATS = ['BEZERRO', 'BEZERRA'];
+  const mainAnimals = pastureAnimals.filter((a) => !BEZERRO_CATS.includes(a.category));
+  const bezerros = pastureAnimals.filter((a) => BEZERRO_CATS.includes(a.category));
+
   const summary: Record<string, number> = {};
   for (const a of pastureAnimals) summary[a.category] = (summary[a.category] ?? 0) + 1;
 
@@ -81,6 +104,122 @@ export default async function PastureDetailPage({
     .where(eq(pastureHistory.pastureId, pastureId))
     .orderBy(sql`1 desc`)
     .limit(12);
+
+  // Timeline: transactions involving this pasture
+  const timeline = await db
+    .select({
+      txId: animalTransactions.id,
+      type: animalTransactions.type,
+      transactionDate: animalTransactions.transactionDate,
+      notes: animalTransactions.notes,
+      animalId: animals.id,
+      tagNumber: animals.tagNumber,
+      category: animals.category,
+      fromPastureId: animalTransactions.fromPastureId,
+      toPastureId: animalTransactions.toPastureId,
+    })
+    .from(animalTransactions)
+    .innerJoin(animals, eq(animals.id, animalTransactions.animalId))
+    .where(
+      or(
+        eq(animalTransactions.fromPastureId, pastureId),
+        eq(animalTransactions.toPastureId, pastureId),
+        and(
+          eq(animals.currentPastureId, pastureId),
+          sql`${animalTransactions.type} IN ('BIRTH', 'DEATH', 'SALE', 'VACCINE')`,
+        ),
+      ),
+    )
+    .orderBy(desc(animalTransactions.transactionDate))
+    .limit(100);
+
+  // Group timeline by date
+  const timelineByDate = new Map<string, typeof timeline>();
+  for (const tx of timeline) {
+    const dateKey = tx.transactionDate ?? 'Sem data';
+    if (!timelineByDate.has(dateKey)) timelineByDate.set(dateKey, []);
+    timelineByDate.get(dateKey)!.push(tx);
+  }
+
+  // Pasture name map
+  const pastureNameMap = new Map(allPastures.map((p) => [p.id, p.name]));
+
+  function AnimalTable({ list, showMove }: { list: typeof pastureAnimals; showMove: boolean }) {
+    return (
+      <div className="rounded-xl border border-zinc-800 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-zinc-900 text-zinc-400 uppercase text-xs tracking-wider">
+            <tr>
+              <th className="px-4 py-3 text-left">Brinco</th>
+              <th className="px-4 py-3 text-left">Categoria</th>
+              <th className="px-4 py-3 text-left">Status</th>
+              {!isHistorical && showMove && <th className="px-4 py-3 text-left w-80">Mover para pasto</th>}
+              <th className="px-4 py-3 text-right">Ver</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-800">
+            {list.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
+                  {isHistorical ? `Nenhum animal em ${periodFilter}.` : 'Nenhum animal.'}
+                </td>
+              </tr>
+            )}
+            {list.map((animal) => (
+              <tr key={animal.id} className="hover:bg-zinc-800/50 transition-colors">
+                <td className="px-4 py-3 font-mono text-white font-semibold">
+                  {animal.tagNumber ?? <span className="text-zinc-500 italic font-normal">sem brinco</span>}
+                  {animal.isPregnant && <span className="ml-2 text-[10px] bg-pink-500/10 text-pink-400 px-1.5 py-0.5 rounded font-normal">PRENHA</span>}
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[animal.category] ?? 'bg-zinc-700 text-zinc-300'}`}>
+                    {animal.category}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    animal.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' :
+                    animal.status === 'SOLD'   ? 'bg-zinc-500/10 text-zinc-400' :
+                                                 'bg-red-900/20 text-red-500'
+                  }`}>
+                    {animal.status === 'ACTIVE' ? 'Ativo' : animal.status === 'SOLD' ? 'Vendido' : 'Morto'}
+                  </span>
+                </td>
+                {!isHistorical && showMove && (
+                  <td className="px-4 py-3">
+                    <form action={async (fd: FormData) => {
+                      'use server';
+                      const targetId = fd.get('targetPastureId');
+                      const moveDate = fd.get('moveDate') as string | null;
+                      await moveAnimalToPasture(animal.id, pastureId, targetId ? Number(targetId) : null, moveDate);
+                    }} className="flex items-center gap-2 flex-wrap">
+                      <select name="targetPastureId" defaultValue={pastureId}
+                        className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500">
+                        <option value="">— Sem pasto —</option>
+                        {allPastures.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                      <input type="date" name="moveDate" defaultValue={today}
+                        className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500" />
+                      <button type="submit"
+                        className="px-2 py-1 text-xs bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded transition-colors font-medium">
+                        Mover
+                      </button>
+                    </form>
+                  </td>
+                )}
+                <td className="px-4 py-3 text-right">
+                  <Link href={`/animals/${animal.id}`}
+                    className="text-zinc-400 hover:text-emerald-400 transition-colors text-xs px-2 py-1 rounded hover:bg-zinc-800">
+                    Ver
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -146,79 +285,69 @@ export default async function PastureDetailPage({
         </div>
       )}
 
-      {/* Animal list */}
-      <div className="rounded-xl border border-zinc-800 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-zinc-900 text-zinc-400 uppercase text-xs tracking-wider">
-            <tr>
-              <th className="px-4 py-3 text-left">Brinco</th>
-              <th className="px-4 py-3 text-left">Categoria</th>
-              <th className="px-4 py-3 text-left">Status</th>
-              {!isHistorical && <th className="px-4 py-3 text-left w-80">Mover para pasto</th>}
-              <th className="px-4 py-3 text-right">Ver</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-800">
-            {pastureAnimals.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-zinc-500">
-                  {isHistorical ? `Nenhum animal neste pasto em ${periodFilter}.` : 'Nenhum animal neste pasto.'}
-                </td>
-              </tr>
-            )}
-            {pastureAnimals.map((animal) => (
-              <tr key={animal.id} className="hover:bg-zinc-800/50 transition-colors">
-                <td className="px-4 py-3 font-mono text-white font-semibold">
-                  {animal.tagNumber ?? <span className="text-zinc-500 italic font-normal">sem brinco</span>}
-                  {animal.isPregnant && <span className="ml-2 text-[10px] bg-pink-500/10 text-pink-400 px-1.5 py-0.5 rounded font-normal">PRENHA</span>}
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[animal.category] ?? 'bg-zinc-700 text-zinc-300'}`}>
-                    {animal.category}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    animal.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' :
-                    animal.status === 'SOLD'   ? 'bg-zinc-500/10 text-zinc-400' :
-                                                 'bg-red-900/20 text-red-500'
-                  }`}>
-                    {animal.status === 'ACTIVE' ? 'Ativo' : animal.status === 'SOLD' ? 'Vendido' : 'Morto'}
-                  </span>
-                </td>
-                {!isHistorical && (
-                  <td className="px-4 py-3">
-                    <form action={async (fd: FormData) => {
-                      'use server';
-                      const targetId = fd.get('targetPastureId');
-                      const moveDate = fd.get('moveDate') as string | null;
-                      await moveAnimalToPasture(animal.id, pastureId, targetId ? Number(targetId) : null, moveDate);
-                    }} className="flex items-center gap-2 flex-wrap">
-                      <select name="targetPastureId" defaultValue={pastureId}
-                        className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500">
-                        <option value="">— Sem pasto —</option>
-                        {allPastures.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                      <input type="date" name="moveDate" defaultValue={today}
-                        className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500" />
-                      <button type="submit"
-                        className="px-2 py-1 text-xs bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded transition-colors font-medium">
-                        Mover
-                      </button>
-                    </form>
-                  </td>
-                )}
-                <td className="px-4 py-3 text-right">
-                  <Link href={`/animals/${animal.id}`}
-                    className="text-zinc-400 hover:text-emerald-400 transition-colors text-xs px-2 py-1 rounded hover:bg-zinc-800">
-                    Ver
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Main animals */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+          Animais ({mainAnimals.length})
+        </h3>
+        <AnimalTable list={mainAnimals} showMove={true} />
       </div>
+
+      {/* Bezerros section */}
+      {bezerros.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold text-amber-500/80 uppercase tracking-wider">
+            Bezerros ({bezerros.length})
+          </h3>
+          <AnimalTable list={bezerros} showMove={true} />
+        </div>
+      )}
+
+      {/* Timeline (collapsible) */}
+      {timeline.length > 0 && (
+        <details className="group rounded-xl border border-zinc-800 overflow-hidden">
+          <summary className="cursor-pointer list-none px-4 py-3 bg-zinc-900/60 flex items-center justify-between hover:bg-zinc-800/60 transition-colors">
+            <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
+              <History size={16} className="text-zinc-500" />
+              Histórico de Movimentações ({timeline.length})
+            </div>
+            <span className="text-xs text-zinc-600 group-open:hidden">Expandir ▼</span>
+            <span className="text-xs text-zinc-600 hidden group-open:block">Recolher ▲</span>
+          </summary>
+
+          <div className="divide-y divide-zinc-800/60">
+            {Array.from(timelineByDate.entries()).map(([dateKey, txs]) => (
+              <div key={dateKey} className="px-4 py-3">
+                <p className="text-[11px] font-semibold text-zinc-600 uppercase tracking-wider mb-2">{dateKey}</p>
+                <div className="space-y-1.5">
+                  {txs.map((tx) => {
+                    const direction =
+                      tx.type === 'TRANSFER'
+                        ? tx.toPastureId === pastureId
+                          ? `← entrada de ${pastureNameMap.get(tx.fromPastureId ?? 0) ?? 'outro pasto'}`
+                          : `→ saída para ${pastureNameMap.get(tx.toPastureId ?? 0) ?? 'outro pasto'}`
+                        : null;
+
+                    return (
+                      <div key={tx.txId} className="flex items-start gap-3 text-sm">
+                        <span className={`text-xs font-medium mt-0.5 ${TX_TYPE_COLOR[tx.type] ?? 'text-zinc-500'}`}>
+                          {TX_TYPE_LABEL[tx.type] ?? tx.type}
+                        </span>
+                        <Link href={`/animals/${tx.animalId}`} className="text-white hover:text-emerald-400 transition-colors font-mono text-xs">
+                          {tx.tagNumber ? `#${tx.tagNumber}` : 'S/N'}
+                        </Link>
+                        <span className="text-zinc-500 text-xs">{tx.category}</span>
+                        {direction && <span className="text-zinc-600 text-xs">{direction}</span>}
+                        {tx.notes && <span className="text-zinc-600 text-xs truncate max-w-xs">{tx.notes}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }
