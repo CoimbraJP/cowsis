@@ -1,9 +1,8 @@
 import { db } from '@/db';
-import { animals, countingItems, countingSessions, pastures } from '@/db/schema';
+import { animals, pastures } from '@/db/schema';
 import { eq, ilike, and, asc, desc, sql, SQL } from 'drizzle-orm';
 import Link from 'next/link';
-import { Beef, Plus, Search, ArrowUpDown, ClipboardList, ChevronDown } from 'lucide-react';
-import { confirmAnimal, moveAnimalSession } from '../inventario/actions';
+import { Beef, Plus, Search, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { moveAnimalToPasture } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -74,7 +73,7 @@ export default async function AnimalsPage({
     default:             orderBy = numericTagAsc;      break;
   }
 
-  const [allAnimals, allPastures, activeSessions] = await Promise.all([
+  const [allAnimals, allPastures] = await Promise.all([
     db
       .select({
         id:          animals.id,
@@ -90,26 +89,7 @@ export default async function AnimalsPage({
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(orderBy),
     db.select().from(pastures).orderBy(pastures.name),
-    db
-      .select({ id: countingSessions.id, name: countingSessions.name })
-      .from(countingSessions)
-      .where(eq(countingSessions.status, 'ACTIVE'))
-      .limit(1),
   ]);
-
-  const activeSession = activeSessions[0] ?? null;
-
-  // If active session, fetch which animal IDs are already confirmed/moved in that session
-  let sessionItemStatusMap = new Map<number, string>();
-  if (activeSession) {
-    const sessionItems = await db
-      .select({ animalId: countingItems.animalId, status: countingItems.status })
-      .from(countingItems)
-      .where(eq(countingItems.sessionId, activeSession.id));
-    for (const si of sessionItems) {
-      sessionItemStatusMap.set(si.animalId, si.status);
-    }
-  }
 
   const totalActive   = allAnimals.filter(a => a.status === 'ACTIVE').length;
   const totalSold     = allAnimals.filter(a => a.status === 'SOLD').length;
@@ -125,20 +105,6 @@ export default async function AnimalsPage({
 
   return (
     <div className="space-y-6">
-      {/* Active session banner */}
-      {activeSession && (
-        <div className="rounded-xl border border-emerald-700/50 bg-emerald-950/30 px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <ClipboardList size={16} className="text-emerald-400" />
-            <span className="text-emerald-300">Contagem ativa:</span>
-            <span className="text-white font-medium">{activeSession.name}</span>
-          </div>
-          <Link href={`/inventario/${activeSession.id}`} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors">
-            Ver contagem →
-          </Link>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -253,108 +219,84 @@ export default async function AnimalsPage({
                 </td>
               </tr>
             )}
-            {allAnimals.map((animal) => {
-              const sessionStatus = sessionItemStatusMap.get(animal.id);
-              const needsConfirm = activeSession && animal.status === 'ACTIVE' && sessionStatus === 'UNTREATED';
-
-              return (
-                <tr key={animal.id} className="hover:bg-zinc-800/50 transition-colors">
-                  <td className="px-4 py-3 font-mono">
-                    <span className="flex items-center gap-2">
-                      <span className={animal.tagNumber ? 'text-white' : 'text-zinc-500 italic'}>
-                        {animal.tagNumber ?? 'sem brinco'}
+            {allAnimals.map((animal) => (
+              <tr key={animal.id} className="hover:bg-zinc-800/50 transition-colors">
+                <td className="px-4 py-3 font-mono">
+                  <span className="flex items-center gap-2">
+                    <span className={animal.tagNumber ? 'text-white' : 'text-zinc-500 italic'}>
+                      {animal.tagNumber ?? 'sem brinco'}
+                    </span>
+                    {animal.isPregnant && (
+                      <span className="px-1.5 py-0.5 text-[10px] bg-pink-500/15 text-pink-400 rounded-full border border-pink-500/20">
+                        🤰 Prenha
                       </span>
-                      {animal.isPregnant && (
-                        <span className="px-1.5 py-0.5 text-[10px] bg-pink-500/15 text-pink-400 rounded-full border border-pink-500/20">
-                          🤰 Prenha
-                        </span>
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[animal.category] ?? 'bg-zinc-700 text-zinc-300'}`}>
-                      {animal.category}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-300">
-                    {animal.pastureName ? (
-                      <Link href={`/pastures/${animal.pastureId}`} className="hover:text-emerald-400 transition-colors">
-                        {animal.pastureName}
-                      </Link>
-                    ) : (
-                      <span className="text-zinc-500 italic">—</span>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[animal.status]}`}>
-                      {STATUS_LABELS[animal.status]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {/* Confirm button (active session + untreated) */}
-                      {needsConfirm && activeSession && (
-                        <form action={async () => {
-                          'use server';
-                          await confirmAnimal(activeSession.id, animal.id);
-                        }}>
-                          <button
-                            type="submit"
-                            className="text-[11px] bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 px-2 py-1 rounded transition-colors"
-                          >
-                            ✓ OK
-                          </button>
-                        </form>
-                      )}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[animal.category] ?? 'bg-zinc-700 text-zinc-300'}`}>
+                    {animal.category}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-zinc-300">
+                  {animal.pastureName ? (
+                    <Link href={`/pastures/${animal.pastureId}`} className="hover:text-emerald-400 transition-colors">
+                      {animal.pastureName}
+                    </Link>
+                  ) : (
+                    <span className="text-zinc-500 italic">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[animal.status]}`}>
+                    {STATUS_LABELS[animal.status]}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end gap-2">
+                    {/* Inline move */}
+                    {animal.status === 'ACTIVE' && (
+                      <details className="relative">
+                        <summary className="cursor-pointer list-none text-[11px] bg-zinc-700 hover:bg-zinc-600 text-zinc-300 px-2 py-1 rounded transition-colors flex items-center gap-1">
+                          Mover <ChevronDown size={11} />
+                        </summary>
+                        <div className="absolute right-0 top-7 z-20 bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-xl w-48 space-y-2">
+                          <p className="text-xs text-zinc-400">Mover para:</p>
+                          <form action={async (fd: FormData) => {
+                            'use server';
+                            const pid = Number(fd.get('toPastureId'));
+                            if (pid) await moveAnimalToPasture(animal.id, animal.pastureId ?? null, pid, null);
+                          }}>
+                            <select
+                              name="toPastureId"
+                              className="w-full px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-white text-xs focus:outline-none"
+                            >
+                              <option value="">Selecione…</option>
+                              {allPastures
+                                .filter((p) => p.id !== animal.pastureId)
+                                .map((p) => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                            <button
+                              type="submit"
+                              className="mt-2 w-full bg-zinc-700 hover:bg-zinc-600 text-white text-xs py-1.5 rounded transition-colors"
+                            >
+                              Confirmar
+                            </button>
+                          </form>
+                        </div>
+                      </details>
+                    )}
 
-                      {/* Inline move */}
-                      {animal.status === 'ACTIVE' && (
-                        <details className="relative">
-                          <summary className="cursor-pointer list-none text-[11px] bg-zinc-700 hover:bg-zinc-600 text-zinc-300 px-2 py-1 rounded transition-colors flex items-center gap-1">
-                            Mover <ChevronDown size={11} />
-                          </summary>
-                          <div className="absolute right-0 top-7 z-20 bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-xl w-48 space-y-2">
-                            <p className="text-xs text-zinc-400">Mover para:</p>
-                            <form action={async (fd: FormData) => {
-                              'use server';
-                              const pid = Number(fd.get('toPastureId'));
-                              const sid = activeSession?.id ?? null;
-                              if (pid) {
-                                await moveAnimalToPasture(animal.id, animal.pastureId ?? null, pid, null);
-                                if (sid) await moveAnimalSession(sid, animal.id, pid);
-                              }
-                            }}>
-                              <select
-                                name="toPastureId"
-                                className="w-full px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-white text-xs focus:outline-none"
-                              >
-                                <option value="">Selecione…</option>
-                                {allPastures
-                                  .filter((p) => p.id !== animal.pastureId)
-                                  .map((p) => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                  ))}
-                              </select>
-                              <button
-                                type="submit"
-                                className="mt-2 w-full bg-zinc-700 hover:bg-zinc-600 text-white text-xs py-1.5 rounded transition-colors"
-                              >
-                                Confirmar
-                              </button>
-                            </form>
-                          </div>
-                        </details>
-                      )}
-
-                      <Link href={`/animals/${animal.id}`}
-                        className="text-zinc-400 hover:text-emerald-400 transition-colors text-xs px-2 py-1 rounded hover:bg-zinc-800">
-                        Editar
-                      </Link>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                    <Link href={`/animals/${animal.id}`}
+                      className="text-zinc-400 hover:text-emerald-400 transition-colors text-xs px-2 py-1 rounded hover:bg-zinc-800">
+                      Editar
+                    </Link>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

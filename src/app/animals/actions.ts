@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { animals, animalTransactions, births, countingItems, inseminations, pastureHistory, pastureInventoryItems } from '@/db/schema';
+import { animals, animalTransactions, births, inseminations, pastureHistory, pastureInventoryItems } from '@/db/schema';
 import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -362,10 +362,8 @@ export async function updateTransactionDate(txId: number, newDate: string) {
 }
 
 export async function deleteAnimal(id: number) {
-  // Delete inventory items first (imported animals have these)
+  // P06: Delete inventory items first (imported animals have these)
   await db.delete(pastureInventoryItems).where(eq(pastureInventoryItems.animalId, id));
-  // Delete counting session items for this animal
-  await db.delete(countingItems).where(eq(countingItems.animalId, id));
   await db.delete(animalTransactions).where(eq(animalTransactions.animalId, id));
   await db.delete(births).where(eq(births.motherId, id));
   await db.delete(inseminations).where(eq(inseminations.animalId, id));
