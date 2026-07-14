@@ -117,17 +117,39 @@ export async function updateAnimal(id: number, formData: FormData) {
     });
   }
 
-  // P09: If status changed to SOLD/DEAD and was previously ACTIVE, close pasture history
-  if ((status === 'SOLD' || status === 'DEAD') && prevStatus === 'ACTIVE' && prevPastureId) {
-    await db.update(pastureHistory).set({ exitedAt: today })
-      .where(and(eq(pastureHistory.animalId, id), isNull(pastureHistory.exitedAt)));
+  // P09: If status changed to SOLD/DEAD and was previously ACTIVE, close pasture history + create transaction
+  if ((status === 'SOLD' || status === 'DEAD') && prevStatus === 'ACTIVE') {
+    if (prevPastureId) {
+      await db.update(pastureHistory).set({ exitedAt: today })
+        .where(and(eq(pastureHistory.animalId, id), isNull(pastureHistory.exitedAt)));
+    }
+    // Create DEATH or SALE transaction so it appears in Mortes/reports
+    await db.insert(animalTransactions).values({
+      animalId: id,
+      type: status === 'DEAD' ? 'DEATH' : 'SALE',
+      transactionDate: today,
+      fromPastureId: prevPastureId,
+      notes: status === 'DEAD' ? 'Registrado via edição' : 'Venda via edição',
+      monthLabel: null,
+    });
   }
 
   revalidatePath('/animals');
+  revalidatePath('/mortes');
   revalidatePath('/pastures');
   revalidatePath(`/animals/${id}`);
   if (prevPastureId) revalidatePath(`/pastures/${prevPastureId}`);
   if (effectivePastureId) revalidatePath(`/pastures/${effectivePastureId}`);
+
+  // Redirect with success message
+  const rawFrom = (formData.get('from') as string)?.trim() || '';
+  const safeFrom = rawFrom.startsWith('/') ? rawFrom : `/animals/${id}`;
+  if (status === 'DEAD' || status === 'SOLD') {
+    const dest = safeFrom.includes('?') ? `${safeFrom}&success=death` : `${safeFrom}?success=death`;
+    redirect(dest);
+  } else {
+    redirect(`/animals/${id}?success=updated${rawFrom ? `&from=${encodeURIComponent(rawFrom)}` : ''}`);
+  }
 }
 
 export async function moveAnimalToPasture(

@@ -99,7 +99,7 @@ export default async function AnimalDetailPage({
       {/* Success banner */}
       {successMsg && (
         <div className="rounded-lg border border-emerald-700/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-300 flex items-center gap-2">
-          ✅ {successMsg === 'death' ? 'Evento registrado com sucesso!' : 'Animal salvo com sucesso!'}
+          ✅ {successMsg === 'death' ? 'Evento registrado com sucesso!' : successMsg === 'updated' ? 'Animal atualizado com sucesso!' : 'Animal salvo com sucesso!'}
         </div>
       )}
 
@@ -123,6 +123,7 @@ export default async function AnimalDetailPage({
         'use server';
         await updateAnimal(animalId, fd);
       }} className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+        <input type="hidden" name="from" value={from} />
         <h3 className="text-lg font-semibold text-white">Dados do Animal</h3>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
