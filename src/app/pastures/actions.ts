@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { pastures, animals, animalTransactions, pastureHistory, pastureSnapshots } from '@/db/schema';
+import { pastures, animals, animalTransactions, pastureHistory, pastureSnapshots, pastureSnapshotItems } from '@/db/schema';
 import { eq, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -49,26 +49,38 @@ export async function deletePasture(id: number) {
 
 export async function savePastureSnapshot(pastureId: number, snapshotDate: string) {
   if (!snapshotDate) return;
-  // Avoid exact duplicate dates for same pasture
-  const existing = await db
-    .select({ id: pastureSnapshots.id })
-    .from(pastureSnapshots)
-    .where(
-      // Using raw sql to avoid import of and/eq duplication — reuse eq from existing import
-      eq(pastureSnapshots.pastureId, pastureId),
-    )
-    .then(rows => rows); // just fetch all for this pasture, check in JS
-  const dup = existing; // we'll check duplicates below
-  await db.insert(pastureSnapshots).values({
+
+  // Get CURRENT animals in this pasture right now
+  const currentAnimals = await db
+    .select({ id: animals.id, tagNumber: animals.tagNumber, category: animals.category })
+    .from(animals)
+    .where(eq(animals.currentPastureId, pastureId));
+
+  // Create snapshot record
+  const [snap] = await db.insert(pastureSnapshots).values({
     pastureId,
     snapshotDate,
     createdAt: new Date().toISOString().split('T')[0],
-  });
+  }).returning({ id: pastureSnapshots.id });
+
+  // Store snapshot items (actual animals at save time)
+  if (currentAnimals.length > 0 && snap) {
+    await db.insert(pastureSnapshotItems).values(
+      currentAnimals.map(a => ({
+        snapshotId: snap.id,
+        animalId:   a.id,
+        tagNumber:  a.tagNumber,
+        category:   a.category,
+      }))
+    );
+  }
+
   revalidatePath(`/pastures/${pastureId}`);
-  redirect(`/pastures/${pastureId}?period=${snapshotDate}`);
+  redirect(`/pastures/${pastureId}?period=${snap.id}`);
 }
 
 export async function deletePastureSnapshot(snapshotId: number, pastureId: number) {
+  await db.delete(pastureSnapshotItems).where(eq(pastureSnapshotItems.snapshotId, snapshotId));
   await db.delete(pastureSnapshots).where(eq(pastureSnapshots.id, snapshotId));
   revalidatePath(`/pastures/${pastureId}`);
   redirect(`/pastures/${pastureId}`);

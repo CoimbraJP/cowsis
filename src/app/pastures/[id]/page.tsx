@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { pastures, animals, pastureHistory, animalTransactions, pastureSnapshots } from '@/db/schema';
+import { pastures, animals, pastureHistory, animalTransactions, pastureSnapshots, pastureSnapshotItems } from '@/db/schema';
 import { eq, and, lte, or, isNull, sql, desc, asc } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -7,6 +7,7 @@ import { ArrowLeft, Trees, Clock, Plus, History, ArrowUpDown } from 'lucide-reac
 import { moveAnimalToPasture } from '@/app/animals/actions';
 import { savePastureSnapshot, deletePastureSnapshot } from '@/app/pastures/actions';
 import { DeletePastureButton } from './DeletePastureButton';
+import { DeleteSnapshotButton } from './DeleteSnapshotButton';
 import { EditPastureButton } from './EditPastureButton';
 
 export const dynamic = 'force-dynamic';
@@ -35,31 +36,35 @@ export default async function PastureDetailPage({
   const [pasture] = await db.select().from(pastures).where(eq(pastures.id, pastureId)).limit(1);
   if (!pasture) notFound();
 
-  const periodFilter = sp.period || '';
-  const isHistorical = !!periodFilter;
-  const sortParam = sp.sort || 'tag';
-  const today = new Date().toISOString().split('T')[0];
+  // period = snapshot ID (number as string)
+  const periodId     = sp.period ? Number(sp.period) : null;
+  const isHistorical = !!periodId;
+  const sortParam    = sp.sort || 'tag';
+  const today        = new Date().toISOString().split('T')[0];
 
   // Numeric sort for brincos
   const numericTagAsc  = sql`(CASE WHEN ${animals.tagNumber} ~ '^[0-9]+$' THEN ${animals.tagNumber}::integer ELSE NULL END) ASC NULLS LAST, ${animals.tagNumber} ASC`;
   const numericTagDesc = sql`(CASE WHEN ${animals.tagNumber} ~ '^[0-9]+$' THEN ${animals.tagNumber}::integer ELSE NULL END) DESC NULLS LAST, ${animals.tagNumber} DESC`;
-  const tagOrder = sortParam === 'tag_desc' ? numericTagDesc : numericTagAsc;
+  const tagOrder       = sortParam === 'tag_desc' ? numericTagDesc : numericTagAsc;
 
-  let pastureAnimals: Array<{ id: number; tagNumber: string | null; category: string; status: string; isPregnant?: boolean | null }> = [];
+  type PastureAnimal = { id: number; tagNumber: string | null; category: string; status: string; isPregnant?: boolean | null };
+  let pastureAnimals: PastureAnimal[] = [];
 
-  if (isHistorical) {
-    const asOfDate = periodFilter;
+  if (isHistorical && periodId) {
+    // Read directly from stored snapshot items
     const rows = await db
-      .select({ id: animals.id, tagNumber: animals.tagNumber, category: animals.category, status: animals.status, isPregnant: animals.isPregnant })
-      .from(pastureHistory)
-      .innerJoin(animals, eq(pastureHistory.animalId, animals.id))
-      .where(and(
-        eq(pastureHistory.pastureId, pastureId),
-        lte(pastureHistory.enteredAt, asOfDate),
-        or(isNull(pastureHistory.exitedAt), sql`${pastureHistory.exitedAt} > ${asOfDate}`)
-      ))
-      .orderBy(tagOrder);
-    pastureAnimals = rows as any;
+      .select({ id: pastureSnapshotItems.animalId, tagNumber: pastureSnapshotItems.tagNumber, category: pastureSnapshotItems.category })
+      .from(pastureSnapshotItems)
+      .where(eq(pastureSnapshotItems.snapshotId, periodId));
+    // Sort by numeric brinco
+    rows.sort((a, b) => {
+      const na = Number(a.tagNumber), nb = Number(b.tagNumber);
+      if (!isNaN(na) && !isNaN(nb)) return sortParam === 'tag_desc' ? nb - na : na - nb;
+      return sortParam === 'tag_desc'
+        ? (b.tagNumber ?? '').localeCompare(a.tagNumber ?? '')
+        : (a.tagNumber ?? '').localeCompare(b.tagNumber ?? '');
+    });
+    pastureAnimals = rows.map(r => ({ id: r.id, tagNumber: r.tagNumber, category: r.category, status: 'ACTIVE' }));
   } else {
     const rows = await db
       .select({ id: animals.id, tagNumber: animals.tagNumber, category: animals.category, status: animals.status, isPregnant: animals.isPregnant })
@@ -71,74 +76,56 @@ export default async function PastureDetailPage({
 
   const allPastures = await db.select().from(pastures).orderBy(pastures.name);
 
-  const CATEGORY_ORDER = ['VACA', 'TOURO', 'NOVILHA', 'NOVILHO', 'BEZERRO', 'BEZERRA'];
-  const CATEGORY_SECTION_LABELS: Record<string, string> = {
-    VACA: 'Vacas', TOURO: 'Touros', NOVILHA: 'Novilhas', NOVILHO: 'Novilhos', BEZERRO: 'Bezerros', BEZERRA: 'Bezerras',
-  };
-  const CATEGORY_SECTION_COLORS: Record<string, string> = {
-    VACA: 'text-blue-400', TOURO: 'text-red-400', NOVILHA: 'text-purple-400',
-    NOVILHO: 'text-pink-400', BEZERRO: 'text-amber-400', BEZERRA: 'text-yellow-400',
-  };
-  const byCat: Record<string, typeof pastureAnimals> = {};
-  for (const a of pastureAnimals) {
-    if (!byCat[a.category]) byCat[a.category] = [];
-    byCat[a.category].push(a);
-  }
-  const categoryGroups = CATEGORY_ORDER
-    .filter(cat => (byCat[cat]?.length ?? 0) > 0)
-    .map(cat => ({
-      cat,
-      label: CATEGORY_SECTION_LABELS[cat] ?? cat,
-      color: CATEGORY_SECTION_COLORS[cat] ?? 'text-zinc-400',
-      list: byCat[cat],
-    }));
-  // any unknown category
-  const unknownAnimals = pastureAnimals.filter(a => !CATEGORY_ORDER.includes(a.category));
+  // Group definitions: each group can contain multiple categories
+  const GROUP_DEFS = [
+    { key: 'VACA',    label: 'Vacas',              color: 'text-blue-400',   cats: ['VACA'] },
+    { key: 'TOURO',   label: 'Touros',             color: 'text-red-400',    cats: ['TOURO'] },
+    { key: 'NOVILHO', label: 'Novilhos/Novilhas',  color: 'text-purple-400', cats: ['NOVILHO', 'NOVILHA'] },
+    { key: 'BEZERRO', label: 'Bezerros/Bezerras',  color: 'text-amber-400',  cats: ['BEZERRO', 'BEZERRA'] },
+  ];
+  const allKnownCats = GROUP_DEFS.flatMap(g => g.cats);
+  const categoryGroups = GROUP_DEFS
+    .map(g => ({ ...g, list: pastureAnimals.filter(a => g.cats.includes(a.category)) }))
+    .filter(g => g.list.length > 0);
+  const unknownAnimals = pastureAnimals.filter(a => !allKnownCats.includes(a.category));
 
   const summary: Record<string, number> = {};
   for (const a of pastureAnimals) summary[a.category] = (summary[a.category] ?? 0) + 1;
 
-  // Saved snapshots for this pasture (manual, user-created)
+  // Saved snapshots (ordered by date so comparison is always with previous)
   const savedSnapshots = await db
     .select({ id: pastureSnapshots.id, snapshotDate: pastureSnapshots.snapshotDate })
     .from(pastureSnapshots)
     .where(eq(pastureSnapshots.pastureId, pastureId))
     .orderBy(pastureSnapshots.snapshotDate);
 
-  // Comparison: when viewing a snapshot, reconstruct the previous snapshot animals
+  // Active snapshot metadata
+  const activeSnapshot = periodId ? savedSnapshots.find(s => s.id === periodId) ?? null : null;
+
+  // Comparison: read previous snapshot items from DB
   let prevSnapshot: { id: number; snapshotDate: string } | null = null;
-  let prevAnimals: Array<{ id: number; tagNumber: string | null }> = [];
-  if (isHistorical && savedSnapshots.length > 1) {
-    const idx = savedSnapshots.findIndex(s => s.snapshotDate === periodFilter);
+  let prevItems: Array<{ id: number; tagNumber: string | null }> = [];
+  if (isHistorical && periodId) {
+    const idx = savedSnapshots.findIndex(s => s.id === periodId);
     if (idx > 0) {
       prevSnapshot = savedSnapshots[idx - 1];
-      const prevDate = prevSnapshot.snapshotDate;
-      prevAnimals = await db
-        .select({ id: animals.id, tagNumber: animals.tagNumber })
-        .from(pastureHistory)
-        .innerJoin(animals, eq(pastureHistory.animalId, animals.id))
-        .where(and(
-          eq(pastureHistory.pastureId, pastureId),
-          lte(pastureHistory.enteredAt, prevDate),
-          or(isNull(pastureHistory.exitedAt), sql`${pastureHistory.exitedAt} > ${prevDate}`)
-        ));
+      const rows = await db
+        .select({ id: pastureSnapshotItems.animalId, tagNumber: pastureSnapshotItems.tagNumber })
+        .from(pastureSnapshotItems)
+        .where(eq(pastureSnapshotItems.snapshotId, prevSnapshot.id));
+      prevItems = rows.map(r => ({ id: r.id, tagNumber: r.tagNumber }));
     }
   }
-  // If viewing "Hoje", compare with most recent snapshot
+  // Today: compare with most recent snapshot
   let todayPrevSnapshot: { id: number; snapshotDate: string } | null = null;
-  let todayPrevAnimals: Array<{ id: number; tagNumber: string | null }> = [];
+  let todayPrevItems: Array<{ id: number; tagNumber: string | null }> = [];
   if (!isHistorical && savedSnapshots.length > 0) {
     todayPrevSnapshot = savedSnapshots[savedSnapshots.length - 1];
-    const prevDate = todayPrevSnapshot.snapshotDate;
-    todayPrevAnimals = await db
-      .select({ id: animals.id, tagNumber: animals.tagNumber })
-      .from(pastureHistory)
-      .innerJoin(animals, eq(pastureHistory.animalId, animals.id))
-      .where(and(
-        eq(pastureHistory.pastureId, pastureId),
-        lte(pastureHistory.enteredAt, prevDate),
-        or(isNull(pastureHistory.exitedAt), sql`${pastureHistory.exitedAt} > ${prevDate}`)
-      ));
+    const rows = await db
+      .select({ id: pastureSnapshotItems.animalId, tagNumber: pastureSnapshotItems.tagNumber })
+      .from(pastureSnapshotItems)
+      .where(eq(pastureSnapshotItems.snapshotId, todayPrevSnapshot.id));
+    todayPrevItems = rows.map(r => ({ id: r.id, tagNumber: r.tagNumber }));
   }
 
   const timeline = await db
@@ -181,7 +168,7 @@ export default async function PastureDetailPage({
   const sortHref = (base: string) => {
     const next = sortParam === 'tag' ? 'tag_desc' : 'tag';
     const q = new URLSearchParams();
-    if (periodFilter) q.set('period', periodFilter);
+    if (periodId) q.set('period', String(periodId));
     q.set('sort', next);
     return `${base}?${q.toString()}`;
   };
@@ -213,7 +200,7 @@ export default async function PastureDetailPage({
             {list.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
-                  {isHistorical ? `Nenhum animal em ${periodFilter}.` : 'Nenhum animal.'}
+                  {isHistorical ? `Nenhum animal neste snapshot.` : 'Nenhum animal.'}
                 </td>
               </tr>
             )}
@@ -293,7 +280,7 @@ export default async function PastureDetailPage({
             <h2 className="text-2xl font-bold text-white">{pasture.name}</h2>
             <p className="text-zinc-400 text-sm">
               {isHistorical
-                ? `${pastureAnimals.length} animais em ${periodFilter}`
+                ? `${pastureAnimals.length} animais no snapshot`
                 : `${pastureAnimals.filter(a => a.status === 'ACTIVE').length} animais ativos`}
             </p>
           </div>
@@ -322,24 +309,13 @@ export default async function PastureDetailPage({
         {savedSnapshots.map((snap) => {
           const [y, m, d] = snap.snapshotDate.split('-');
           const label = `${d}/${m}/${y}`;
-          const isActive = periodFilter === snap.snapshotDate;
+          const isActive = periodId === snap.id;
           return (
-            <div key={snap.id} className="flex items-center gap-0.5">
-              <Link href={`/pastures/${pastureId}?period=${snap.snapshotDate}${sortParam !== 'tag' ? `&sort=${sortParam}` : ''}`}
-                className={`px-3 py-1 rounded-l-lg text-xs font-medium transition-colors ${isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
-                {label}
-              </Link>
-              <form action={async () => {
-                'use server';
-                await deletePastureSnapshot(snap.id, pastureId);
-              }}>
-                <button type="submit"
-                  className="px-1.5 py-1 bg-zinc-800 hover:bg-red-900/40 text-zinc-600 hover:text-red-400 rounded-r-lg text-xs transition-colors"
-                  title="Remover snapshot">
-                  ✕
-                </button>
-              </form>
-            </div>
+            <Link key={snap.id}
+              href={`/pastures/${pastureId}?period=${snap.id}${sortParam !== 'tag' ? `&sort=${sortParam}` : ''}`}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
+              {label}
+            </Link>
           );
         })}
         {/* Save snapshot inline form */}
@@ -376,15 +352,19 @@ export default async function PastureDetailPage({
         </div>
       )}
 
-      {isHistorical && (
-        <div className="rounded-lg bg-zinc-800/60 border border-zinc-700/60 px-4 py-2 text-zinc-400 text-sm">
-          📸 Composição salva em {periodFilter.split('-').reverse().join('/')}
+      {isHistorical && activeSnapshot && (
+        <div className="flex items-center justify-between rounded-lg bg-zinc-800/60 border border-zinc-700/60 px-4 py-2">
+          <span className="text-zinc-400 text-sm">
+            📸 Composição salva em {activeSnapshot.snapshotDate.split('-').reverse().join('/')}
+            {' '}— {pastureAnimals.length} animais
+          </span>
+          <DeleteSnapshotButton snapshotId={activeSnapshot.id} pastureId={pastureId} action={deletePastureSnapshot} />
         </div>
       )}
 
       {/* Animals by category */}
-      {categoryGroups.map(({ cat, label, color, list }) => (
-        <div key={cat} className="space-y-2">
+      {categoryGroups.map(({ key, label, color, list }) => (
+        <div key={key} className="space-y-2">
           <h3 className={`text-xs font-semibold uppercase tracking-wider ${color}`}>
             {label} ({list.length})
           </h3>
@@ -403,20 +383,21 @@ export default async function PastureDetailPage({
       {/* Comparison section */}
       {(() => {
         const baseIds = isHistorical
-          ? new Set(prevAnimals.map(a => a.id))
-          : new Set(todayPrevAnimals.map(a => a.id));
+          ? new Set(prevItems.map(a => a.id))
+          : new Set(todayPrevItems.map(a => a.id));
         const currentIds = new Set(pastureAnimals.map(a => a.id));
         const refLabel = isHistorical && prevSnapshot
           ? prevSnapshot.snapshotDate.split('-').reverse().join('/')
           : !isHistorical && todayPrevSnapshot
           ? todayPrevSnapshot.snapshotDate.split('-').reverse().join('/')
           : null;
+        if (!refLabel && isHistorical) return null; // first snapshot, no previous
         if (!refLabel) return null;
 
         const enteredAnimals = pastureAnimals.filter(a => !baseIds.has(a.id));
         const exitedAnimals  = isHistorical
-          ? prevAnimals.filter(a => !currentIds.has(a.id))
-          : todayPrevAnimals.filter(a => !currentIds.has(a.id));
+          ? prevItems.filter(a => !currentIds.has(a.id))
+          : todayPrevItems.filter(a => !currentIds.has(a.id));
 
         if (enteredAnimals.length === 0 && exitedAnimals.length === 0) {
           return (

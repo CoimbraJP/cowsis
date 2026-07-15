@@ -90,6 +90,14 @@ export const pastureSnapshots = pgTable('pasture_snapshots', {
   createdAt:    text('created_at').notNull(),
 });
 
+export const pastureSnapshotItems = pgTable('pasture_snapshot_items', {
+  id:          serial('id').primaryKey(),
+  snapshotId:  integer('snapshot_id').notNull().references(() => pastureSnapshots.id),
+  animalId:    integer('animal_id').notNull(),
+  tagNumber:   text('tag_number'),
+  category:    text('category').notNull(),
+});
+
 export const pasturesRelations = relations(pastures, ({ many }) => ({
   animals: many(animals),
   inventories: many(pastureInventories),
