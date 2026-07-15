@@ -178,16 +178,9 @@ export default async function PastureDetailPage({
     return (
       <div className="rounded-xl border border-zinc-800 overflow-hidden">
         <table className="w-full text-sm table-fixed">
-          <colgroup>
-            <col className="w-28" />
-            <col className="w-32" />
-            <col className="w-28" />
-            {!isHistorical && <col />}
-            <col className="w-16" />
-          </colgroup>
           <thead className="bg-zinc-900 text-zinc-400 uppercase text-xs tracking-wider">
             <tr>
-              <th className="px-4 py-3 text-left">
+              <th className={`px-4 py-3 text-left ${isHistorical ? 'w-[28%]' : 'w-[18%]'}`}>
                 <Link
                   href={sortHref(`/pastures/${pastureId}`)}
                   className="flex items-center gap-1 hover:text-white transition-colors group"
@@ -197,10 +190,10 @@ export default async function PastureDetailPage({
                   <span className="text-emerald-400">{sortIcon}</span>
                 </Link>
               </th>
-              <th className="px-4 py-3 text-left">Categoria</th>
-              <th className="px-4 py-3 text-left">Status</th>
+              <th className={`px-4 py-3 text-left ${isHistorical ? 'w-[30%]' : 'w-[20%]'}`}>Categoria</th>
+              <th className={`px-4 py-3 text-left ${isHistorical ? 'w-[32%]' : 'w-[18%]'}`}>Status</th>
               {!isHistorical && <th className="px-4 py-3 text-left">Mover</th>}
-              <th className="px-4 py-3 text-right">Ver</th>
+              <th className={`px-4 py-3 text-right ${isHistorical ? 'w-[10%]' : 'w-[10%]'}`}>Ver</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800">
