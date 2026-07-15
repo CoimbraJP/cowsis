@@ -97,7 +97,7 @@ export default async function PastureDetailPage({
     .select({ id: pastureSnapshots.id, snapshotDate: pastureSnapshots.snapshotDate })
     .from(pastureSnapshots)
     .where(eq(pastureSnapshots.pastureId, pastureId))
-    .orderBy(pastureSnapshots.snapshotDate);
+    .orderBy(desc(pastureSnapshots.snapshotDate));
 
   // Active snapshot metadata
   const activeSnapshot = periodId ? savedSnapshots.find(s => s.id === periodId) ?? null : null;
@@ -108,7 +108,7 @@ export default async function PastureDetailPage({
   if (isHistorical && periodId) {
     const idx = savedSnapshots.findIndex(s => s.id === periodId);
     if (idx > 0) {
-      prevSnapshot = savedSnapshots[idx - 1];
+      prevSnapshot = savedSnapshots[idx + 1];
       const rows = await db
         .select({ id: pastureSnapshotItems.animalId, tagNumber: pastureSnapshotItems.tagNumber })
         .from(pastureSnapshotItems)
@@ -120,7 +120,7 @@ export default async function PastureDetailPage({
   let todayPrevSnapshot: { id: number; snapshotDate: string } | null = null;
   let todayPrevItems: Array<{ id: number; tagNumber: string | null }> = [];
   if (!isHistorical && savedSnapshots.length > 0) {
-    todayPrevSnapshot = savedSnapshots[savedSnapshots.length - 1];
+    todayPrevSnapshot = savedSnapshots[0];
     const rows = await db
       .select({ id: pastureSnapshotItems.animalId, tagNumber: pastureSnapshotItems.tagNumber })
       .from(pastureSnapshotItems)
@@ -177,7 +177,14 @@ export default async function PastureDetailPage({
   function AnimalTable({ list }: { list: typeof pastureAnimals }) {
     return (
       <div className="rounded-xl border border-zinc-800 overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
+          <colgroup>
+            <col className="w-28" />
+            <col className="w-32" />
+            <col className="w-28" />
+            {!isHistorical && <col />}
+            <col className="w-16" />
+          </colgroup>
           <thead className="bg-zinc-900 text-zinc-400 uppercase text-xs tracking-wider">
             <tr>
               <th className="px-4 py-3 text-left">
@@ -285,17 +292,19 @@ export default async function PastureDetailPage({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <EditPastureButton id={pastureId} currentName={pasture.name} />
-          <DeletePastureButton id={pastureId} />
-          <Link
-            href={`/animals/new?pastureId=${pastureId}&from=/pastures/${pastureId}`}
-            className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all font-medium text-sm"
-          >
-            <Plus size={16} />
-            Novo Animal
-          </Link>
-        </div>
+        {!isHistorical && (
+          <div className="flex items-center gap-2">
+            <EditPastureButton id={pastureId} currentName={pasture.name} />
+            <DeletePastureButton id={pastureId} />
+            <Link
+              href={`/animals/new?pastureId=${pastureId}&from=/pastures/${pastureId}`}
+              className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all font-medium text-sm"
+            >
+              <Plus size={16} />
+              Novo Animal
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Snapshot bar */}
