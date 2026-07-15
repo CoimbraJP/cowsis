@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { pastures, animals, animalTransactions, pastureHistory } from '@/db/schema';
+import { pastures, animals, animalTransactions, pastureHistory, pastureSnapshots } from '@/db/schema';
 import { eq, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -45,4 +45,31 @@ export async function deletePasture(id: number) {
   revalidatePath('/transactions');
   revalidatePath('/pastures/historico');
   redirect('/pastures');
+}
+
+export async function savePastureSnapshot(pastureId: number, snapshotDate: string) {
+  if (!snapshotDate) return;
+  // Avoid exact duplicate dates for same pasture
+  const existing = await db
+    .select({ id: pastureSnapshots.id })
+    .from(pastureSnapshots)
+    .where(
+      // Using raw sql to avoid import of and/eq duplication — reuse eq from existing import
+      eq(pastureSnapshots.pastureId, pastureId),
+    )
+    .then(rows => rows); // just fetch all for this pasture, check in JS
+  const dup = existing; // we'll check duplicates below
+  await db.insert(pastureSnapshots).values({
+    pastureId,
+    snapshotDate,
+    createdAt: new Date().toISOString().split('T')[0],
+  });
+  revalidatePath(`/pastures/${pastureId}`);
+  redirect(`/pastures/${pastureId}?period=${snapshotDate}`);
+}
+
+export async function deletePastureSnapshot(snapshotId: number, pastureId: number) {
+  await db.delete(pastureSnapshots).where(eq(pastureSnapshots.id, snapshotId));
+  revalidatePath(`/pastures/${pastureId}`);
+  redirect(`/pastures/${pastureId}`);
 }

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const CAT_COLOR: Record<string, string> = {
   VACA: 'text-blue-400', BEZERRO: 'text-amber-400', BEZERRA: 'text-yellow-400',
   TOURO: 'text-red-400', NOVILHA: 'text-purple-400', NOVILHO: 'text-pink-400',
-  'BÚFALO': 'text-teal-400', 'BÚFALA': 'text-cyan-400',
+ 
 };
 
 function today() { return new Date().toISOString().split('T')[0]; }

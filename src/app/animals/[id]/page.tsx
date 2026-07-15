@@ -1,7 +1,7 @@
 import { db } from '@/db';
-import { animals, pastures, births, inseminations, animalTransactions } from '@/db/schema';
+import { animals, pastures, inseminations, animalTransactions } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { updateAnimal, addVaccine, deleteVaccine, updateTransactionDate, addInsemination, updateInsemination, registerEvent, registerBirth } from '../actions';
+import { updateAnimal, addVaccine, deleteVaccine, updateTransactionDate, addInsemination, updateInsemination, registerEvent } from '../actions';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -62,7 +62,6 @@ export default async function AnimalDetailPage({
 
   // P20: Only show active pastures in dropdowns
   const allPastures = await db.select().from(pastures).where(eq(pastures.active, true)).orderBy(pastures.name);
-  const birthRecords = await db.select().from(births).where(eq(births.motherId, animalId));
   const insemRecords = await db.select().from(inseminations).where(eq(inseminations.animalId, animalId)).orderBy(desc(inseminations.id));
 
   const txRecords = await db
@@ -150,8 +149,6 @@ export default async function AnimalDetailPage({
               <option value="TOURO">Touro</option>
               <option value="NOVILHA">Novilha</option>
               <option value="NOVILHO">Novilho</option>
-              <option value="BÚFALO">Búfalo</option>
-              <option value="BÚFALA">Búfala</option>
             </select>
           </div>
           <div className="space-y-1">
@@ -400,88 +397,6 @@ export default async function AnimalDetailPage({
         })}
       </div>
 
-      {/* P03: Register birth */}
-      {(animal.category === 'VACA' || animal.isPregnant) && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-white">🐣 Partos / Nascimentos ({birthRecords.length})</h3>
-          <form action={async (fd: FormData) => {
-            'use server';
-            fd.set('animalId', String(animalId));
-            await registerBirth(fd);
-          }} className="flex flex-wrap gap-2 items-end border-b border-zinc-800 pb-4">
-            <div className="space-y-1">
-              <label className="text-xs text-zinc-400">Data do parto</label>
-              <input type="date" name="birthDate" defaultValue={today}
-                className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-zinc-400">Sexo da cria</label>
-              <select name="offspringGender"
-                className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500">
-                <option value="">Não identificado</option>
-                <option value="M">Macho</option>
-                <option value="F">Fêmea</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-zinc-400">Status</label>
-              <select name="birthStatus"
-                className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500">
-                <option value="ALIVE">Nasceu vivo</option>
-                <option value="STILLBORN">Natimorto</option>
-              </select>
-            </div>
-            <div className="space-y-1 flex-1 min-w-[120px]">
-              <label className="text-xs text-zinc-400">Observações</label>
-              <input type="text" name="observations" placeholder="Observações..."
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-emerald-500" />
-            </div>
-            <button type="submit"
-              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors">
-              Registrar Parto
-            </button>
-          </form>
-          {birthRecords.length > 0 && (
-            <div className="space-y-2">
-              {birthRecords.map((b) => (
-                <div key={b.id} className="flex items-center justify-between text-sm py-2 border-b border-zinc-800 last:border-0">
-                  <div className="flex flex-wrap gap-2 text-zinc-400">
-                    <span>{fmtDate(b.birthDate)}</span>
-                    {b.offspringGender && <span>• {b.offspringGender === 'M' ? 'Macho' : 'Fêmea'}</span>}
-                    {b.observations && <span className="italic text-zinc-500">• {b.observations}</span>}
-                  </div>
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
-                    b.status === 'ALIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                  }`}>
-                    {b.status === 'ALIVE' ? 'Vivo' : 'Natimorto'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Births for non-cows */}
-      {animal.category !== 'VACA' && !animal.isPregnant && birthRecords.length > 0 && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-3">
-          <h3 className="text-lg font-semibold text-white">🐣 Nascimentos ({birthRecords.length})</h3>
-          {birthRecords.map((b) => (
-            <div key={b.id} className="flex items-center justify-between text-sm py-2 border-b border-zinc-800 last:border-0">
-              <div className="flex flex-wrap gap-2 text-zinc-400">
-                <span>{fmtDate(b.birthDate)}</span>
-                {b.offspringGender && <span>• {b.offspringGender === 'M' ? 'Macho' : 'Fêmea'}</span>}
-                {b.observations && <span className="italic text-zinc-500">• {b.observations}</span>}
-              </div>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
-                b.status === 'ALIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-              }`}>
-                {b.status === 'ALIVE' ? 'Vivo' : 'Natimorto'}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Transfers */}
       {transfers.length > 0 && (

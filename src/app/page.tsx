@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { animals, pastures, inseminations, pastureHistory, animalTransactions } from "@/db/schema";
 import { sql, eq, and, desc } from "drizzle-orm";
-import { Activity, Beef, Trees, Search, TrendingUp, Syringe, ArrowRight } from "lucide-react";
+import { Beef, Trees, Search, TrendingUp, ArrowRight, Syringe } from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export default async function DashboardPage({
 }) {
   const sp = await searchParams;
   const query = sp.q?.trim() || "";
-  let stats = { totalAnimals: 0, activePastures: 0, totalTransactions: 0, totalInseminations: 0 };
+  let stats = { totalAnimals: 0, activePastures: 0, vacas: 0, bezerros: 0, novilhos: 0, touros: 0 };
   let searchResults: any[] = [];
   let topPastures: any[] = [];
   let monthlyData: { label: string; count: number }[] = [];
@@ -46,13 +46,17 @@ export default async function DashboardPage({
   try {
     const [animalsResult] = await db.select({ count: sql<number>`count(*)` }).from(animals).where(eq(animals.status, "ACTIVE"));
     const [pasturesResult] = await db.select({ count: sql<number>`count(*)` }).from(pastures).where(eq(pastures.active, true));
-    const [txResult] = await db.select({ count: sql<number>`count(*)` }).from(animalTransactions);
-    const [insemResult] = await db.select({ count: sql<number>`count(*)` }).from(inseminations);
+    const categoryCounts = await db
+      .select({ category: animals.category, count: sql<number>`count(*)` })
+      .from(animals).where(eq(animals.status, "ACTIVE")).groupBy(animals.category);
 
-    stats.totalAnimals        = Number(animalsResult?.count || 0);
-    stats.activePastures      = Number(pasturesResult?.count || 0);
-    stats.totalTransactions   = Number(txResult?.count || 0);
-    stats.totalInseminations  = Number(insemResult?.count || 0);
+    const catMap = Object.fromEntries(categoryCounts.map(r => [r.category, Number(r.count)]));
+    stats.totalAnimals   = Number(animalsResult?.count || 0);
+    stats.activePastures = Number(pasturesResult?.count || 0);
+    stats.vacas    = catMap["VACA"] ?? 0;
+    stats.bezerros = (catMap["BEZERRO"] ?? 0) + (catMap["BEZERRA"] ?? 0);
+    stats.novilhos = (catMap["NOVILHO"] ?? 0) + (catMap["NOVILHA"] ?? 0);
+    stats.touros   = catMap["TOURO"] ?? 0;
 
     topPastures = await db
       .select({ id: pastures.id, name: pastures.name, animalCount: sql<number>`count(${animals.id})` })
@@ -102,19 +106,18 @@ export default async function DashboardPage({
       </div>
 
       {/* Stat cards */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {[
-          { href: "/animals?status=ACTIVE", label: "Animais Totais", value: stats.totalAnimals, Icon: Beef, hover: "hover:border-emerald-500/30", iconColor: "group-hover:text-emerald-500" },
-          { href: "/pastures", label: "Pastos Ativos", value: stats.activePastures, Icon: Trees, hover: "hover:border-emerald-500/30", iconColor: "group-hover:text-emerald-500" },
-          { href: "/transactions", label: "Movimentações", value: stats.totalTransactions, Icon: Activity, hover: "hover:border-amber-500/30", iconColor: "group-hover:text-amber-400" },
-          { href: "/inseminations", label: "Inseminações", value: stats.totalInseminations, Icon: Syringe, hover: "hover:border-purple-500/30", iconColor: "group-hover:text-purple-400" },
-        ].map(({ href, label, value, Icon, hover, iconColor }) => (
-          <Link key={href} href={href} className={`group rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-5 flex flex-col gap-3 ${hover} hover:bg-zinc-900/80 transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]`}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">{label}</span>
-              <Icon className={`h-4 w-4 text-zinc-600 transition-colors ${iconColor}`} />
-            </div>
-            <span className="text-3xl font-bold text-white tabular-nums">{value}</span>
+          { href: "/animals?status=ACTIVE", label: "Animais Totais", value: stats.totalAnimals,   color: "text-emerald-400", border: "hover:border-emerald-500/30" },
+          { href: "/animals?category=VACA",    label: "Vacas",          value: stats.vacas,          color: "text-blue-400",    border: "hover:border-blue-500/30" },
+          { href: "/animals?category=BEZERRO", label: "Bezerros",       value: stats.bezerros,       color: "text-amber-400",   border: "hover:border-amber-500/30" },
+          { href: "/animals?category=NOVILHO", label: "Novilhos",       value: stats.novilhos,       color: "text-pink-400",    border: "hover:border-pink-500/30" },
+          { href: "/animals?category=TOURO",   label: "Touros",         value: stats.touros,         color: "text-red-400",     border: "hover:border-red-500/30" },
+          { href: "/pastures",                 label: "Pastos Ativos",  value: stats.activePastures, color: "text-teal-400",    border: "hover:border-teal-500/30" },
+        ].map(({ href, label, value, color, border }) => (
+          <Link key={href} href={href} className={`group rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-4 flex flex-col gap-2 ${border} hover:bg-zinc-900/80 transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]`}>
+            <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-widest leading-tight">{label}</span>
+            <span className={`text-3xl font-bold tabular-nums ${color}`}>{value}</span>
           </Link>
         ))}
       </div>

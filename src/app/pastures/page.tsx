@@ -92,7 +92,7 @@ export default async function PasturesPage({
             </div>
 
             <div className="flex items-center gap-2 pt-1 border-t border-zinc-800">
-              <Link href={`/pastures/${pasto.id}`} className="text-xs text-zinc-400 hover:text-emerald-400 transition-colors">
+              <Link href={`/pastures/${pasto.id}`} className="text-xs text-white hover:text-emerald-400 transition-colors">
                 Ver animais →
               </Link>
               <div className="flex-1" />

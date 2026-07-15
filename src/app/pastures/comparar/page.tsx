@@ -6,13 +6,12 @@ import { GitCompare, AlertTriangle } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-const CATEGORIES = ['VACA', 'BEZERRO', 'BEZERRA', 'TOURO', 'NOVILHA', 'NOVILHO', 'BÚFALO', 'BÚFALA'] as const;
+const CATEGORIES = ['VACA', 'BEZERRO', 'BEZERRA', 'TOURO', 'NOVILHA', 'NOVILHO'] as const;
 
 const CAT_COLOR: Record<string, string> = {
   VACA: 'text-blue-400', BEZERRO: 'text-amber-400', BEZERRA: 'text-yellow-400',
   TOURO: 'text-red-400', NOVILHA: 'text-purple-400', NOVILHO: 'text-pink-400',
-  'BÚFALO': 'text-teal-400', 'BÚFALA': 'text-cyan-400',
-};
+ };
 
 function lastDayOfMonth(ym: string) {
   const [y, m] = ym.split('-').map(Number);

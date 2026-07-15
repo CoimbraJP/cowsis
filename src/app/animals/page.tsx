@@ -14,8 +14,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   TOURO:    'bg-red-500/10 text-red-400',
   NOVILHA:  'bg-purple-500/10 text-purple-400',
   NOVILHO:  'bg-pink-500/10 text-pink-400',
-  'BÚFALO': 'bg-teal-500/10 text-teal-400',
-  'BÚFALA': 'bg-cyan-500/10 text-cyan-400',
 };
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-emerald-500/10 text-emerald-400',
@@ -227,8 +225,6 @@ export default async function AnimalsPage({
           <option value="TOURO">Touro</option>
           <option value="NOVILHA">Novilha</option>
           <option value="NOVILHO">Novilho</option>
-          <option value="BÚFALO">Búfalo</option>
-          <option value="BÚFALA">Búfala</option>
         </select>
         <select name="pastureId" defaultValue={pastureFilter}
           className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500">
@@ -254,7 +250,7 @@ export default async function AnimalsPage({
       </form>
 
       {/* Table */}
-      <div className="rounded-xl border border-zinc-800 overflow-hidden">
+      <div className="rounded-xl border border-zinc-800">
         <table className="w-full text-sm">
           <thead className="bg-zinc-900 text-zinc-400 uppercase text-xs tracking-wider">
             <tr>
@@ -356,7 +352,7 @@ export default async function AnimalsPage({
                       </details>
                     )}
                     <Link href={`/animals/${animal.id}?from=/animals`}
-                      className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors px-2 py-1 rounded border border-zinc-800 hover:border-zinc-700">
+                      className="text-xs text-white hover:text-emerald-400 transition-colors px-2 py-1 rounded border border-zinc-700 hover:border-zinc-500">
                       Ver
                     </Link>
                   </div>

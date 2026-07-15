@@ -54,8 +54,6 @@ export default async function NewAnimalPage({
               <option value="TOURO">Touro</option>
               <option value="NOVILHA">Novilha</option>
               <option value="NOVILHO">Novilho</option>
-              <option value="BÚFALO">Búfalo</option>
-              <option value="BÚFALA">Búfala</option>
             </select>
           </div>
         </div>

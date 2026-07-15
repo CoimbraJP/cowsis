@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 const CATEGORY_LABELS: Record<string, string> = {
   VACA: 'Vaca', BEZERRO: 'Bezerro', BEZERRA: 'Bezerra', TOURO: 'Touro',
-  NOVILHA: 'Novilha', NOVILHO: 'Novilho', 'BÚFALO': 'Búfalo', 'BÚFALA': 'Búfala',
+  NOVILHA: 'Novilha', NOVILHO: 'Novilho',
 };
 const TX_LABELS: Record<string, string> = {
   SALE: 'Venda', DEATH: 'Morte', BIRTH: 'Nascimento',
