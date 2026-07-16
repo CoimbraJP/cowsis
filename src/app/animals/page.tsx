@@ -40,7 +40,7 @@ function sortIcon(s: string, k: string) {
 export default async function AnimalsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; category?: string; sort?: string; pregnant?: string; bezerros?: string; pastureId?: string; noPasture?: string; deadDays?: string; success?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; category?: string; sort?: string; pregnant?: string; bezerros?: string; novilhos?: string; pastureId?: string; noPasture?: string; deadDays?: string; success?: string }>;
 }) {
   const sp = await searchParams;
   const query          = sp.q?.trim() || '';
@@ -50,6 +50,7 @@ export default async function AnimalsPage({
   const pregnantOnly   = sp.pregnant === '1';
   const pastureFilter  = sp.pastureId || '';
   const bezerrosMode   = sp.bezerros === '1';
+  const novilhosMode   = sp.novilhos === '1';
   const noPastureMode  = sp.noPasture === '1';
   const deadDays       = sp.deadDays ? Number(sp.deadDays) : 0;
   const successMsg     = sp.success;
@@ -81,6 +82,7 @@ export default async function AnimalsPage({
   }
   if (categoryFilter) conditions.push(eq(animals.category, categoryFilter as any));
   if (bezerrosMode)   conditions.push(sql`${animals.category} IN ('BEZERRO', 'BEZERRA')`);
+  if (novilhosMode)   conditions.push(sql`${animals.category} IN ('NOVILHO', 'NOVILHA')`);
   if (pregnantOnly)   conditions.push(eq(animals.isPregnant, true));
   if (pastureFilter)  conditions.push(eq(animals.currentPastureId, Number(pastureFilter)));
   if (noPastureMode)  { conditions.push(isNull(animals.currentPastureId)); conditions.push(eq(animals.status, 'ACTIVE')); }
@@ -283,8 +285,21 @@ export default async function AnimalsPage({
                 </td>
               </tr>
             )}
-            {allAnimals.map((animal) => (
-              <tr key={animal.id} className="hover:bg-zinc-800/50 transition-colors">
+            {(bezerrosMode || novilhosMode) ? (() => {
+              const groups = bezerrosMode
+                ? [{ cats: ['BEZERRO'], label: 'Bezerros', color: 'text-amber-400' }, { cats: ['BEZERRA'], label: 'Bezerras', color: 'text-yellow-400' }]
+                : [{ cats: ['NOVILHO'], label: 'Novilhos', color: 'text-purple-400' }, { cats: ['NOVILHA'], label: 'Novilhas', color: 'text-pink-400' }];
+              return groups.map(({ cats, label, color }) => {
+                const group = allAnimals.filter(a => cats.includes(a.category));
+                if (group.length === 0) return null;
+                return [
+                  <tr key={`hdr-${label}`}>
+                    <td colSpan={5} className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider bg-zinc-900/80 border-b border-zinc-800 ${color}`}>
+                      {label} ({group.length})
+                    </td>
+                  </tr>,
+                  ...group.map((animal) => (
+                    <tr key={animal.id} className="hover:bg-zinc-800/50 transition-colors">
                 <td className="px-4 py-3 font-mono">
                   <span className="flex items-center gap-2">
                     <span className={animal.tagNumber ? 'text-white' : 'text-zinc-500 italic'}>
@@ -351,6 +366,51 @@ export default async function AnimalsPage({
                         </div>
                       </details>
                     )}
+                    <Link href={`/animals/${animal.id}?from=/animals`}
+                      className="text-xs text-white hover:text-emerald-400 transition-colors px-2 py-1 rounded border border-zinc-700 hover:border-zinc-500">
+                      Ver
+                    </Link>
+                  </div>
+                </td>
+              </tr>
+                  ))
+                ];
+              });
+            })() : allAnimals.map((animal) => (
+              <tr key={animal.id} className="hover:bg-zinc-800/50 transition-colors">
+                <td className="px-4 py-3 font-mono">
+                  <span className="flex items-center gap-2">
+                    <span className={animal.tagNumber ? 'text-white' : 'text-zinc-500 italic'}>
+                      {animal.tagNumber ?? 'sem brinco'}
+                    </span>
+                    {animal.isPregnant && (
+                      <span className="px-1.5 py-0.5 text-[10px] bg-pink-500/15 text-pink-400 rounded-full border border-pink-500/20">
+                        🤰 Prenha
+                      </span>
+                    )}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[animal.category] ?? 'bg-zinc-700 text-zinc-300'}`}>
+                    {animal.category}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-zinc-300">
+                  {animal.pastureName ? (
+                    <Link href={`/pastures/${animal.pastureId}`} className="hover:text-emerald-400 transition-colors">
+                      {animal.pastureName}
+                    </Link>
+                  ) : (
+                    <span className="text-zinc-500 italic">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[animal.status]}`}>
+                    {STATUS_LABELS[animal.status]}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end gap-2">
                     <Link href={`/animals/${animal.id}?from=/animals`}
                       className="text-xs text-white hover:text-emerald-400 transition-colors px-2 py-1 rounded border border-zinc-700 hover:border-zinc-500">
                       Ver
