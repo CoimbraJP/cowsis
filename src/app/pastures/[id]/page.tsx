@@ -107,7 +107,7 @@ export default async function PastureDetailPage({
   let prevItems: Array<{ id: number; tagNumber: string | null }> = [];
   if (isHistorical && periodId) {
     const idx = savedSnapshots.findIndex(s => s.id === periodId);
-    if (idx > 0) {
+    if (idx !== -1 && idx < savedSnapshots.length - 1) {
       prevSnapshot = savedSnapshots[idx + 1];
       const rows = await db
         .select({ id: pastureSnapshotItems.animalId, tagNumber: pastureSnapshotItems.tagNumber })
