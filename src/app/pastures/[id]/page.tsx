@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Trees, Clock, Plus, History, ArrowUpDown } from 'lucide-react';
 import { moveAnimalToPasture } from '@/app/animals/actions';
+import { SelectableAnimalTable } from './SelectableAnimalTable';
 import { savePastureSnapshot, deletePastureSnapshot } from '@/app/pastures/actions';
 import { DeletePastureButton } from './DeletePastureButton';
 import { DeleteSnapshotButton } from './DeleteSnapshotButton';
@@ -370,7 +371,7 @@ export default async function PastureDetailPage({
           <h3 className={`text-xs font-semibold uppercase tracking-wider ${color}`}>
             {label} ({list.length})
           </h3>
-          <AnimalTable list={list} />
+          <SelectableAnimalTable list={list} allPastures={allPastures} pastureId={pastureId} isHistorical={isHistorical} moveAction={moveAnimalToPasture} today={today} />
         </div>
       ))}
       {unknownAnimals.length > 0 && (
@@ -378,7 +379,7 @@ export default async function PastureDetailPage({
           <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
             Outros ({unknownAnimals.length})
           </h3>
-          <AnimalTable list={unknownAnimals} />
+          <SelectableAnimalTable list={unknownAnimals} allPastures={allPastures} pastureId={pastureId} isHistorical={isHistorical} moveAction={moveAnimalToPasture} today={today} />
         </div>
       )}
 
