@@ -37,7 +37,7 @@ export default async function DashboardPage({
 }) {
   const sp = await searchParams;
   const query = sp.q?.trim() || "";
-  let stats = { totalAnimals: 0, activePastures: 0, vacas: 0, bezerros: 0, novilhos: 0, touros: 0 };
+  let stats = { totalAnimals: 0, activePastures: 0, vacas: 0, bezerros: 0, bezerroM: 0, bezerroF: 0, novilhos: 0, novilhoM: 0, novilhoF: 0, touros: 0 };
   let searchResults: any[] = [];
   let topPastures: any[] = [];
   let monthlyData: { label: string; count: number }[] = [];
@@ -54,8 +54,12 @@ export default async function DashboardPage({
     stats.totalAnimals   = Number(animalsResult?.count || 0);
     stats.activePastures = Number(pasturesResult?.count || 0);
     stats.vacas    = catMap["VACA"] ?? 0;
-    stats.bezerros = (catMap["BEZERRO"] ?? 0) + (catMap["BEZERRA"] ?? 0);
-    stats.novilhos = (catMap["NOVILHO"] ?? 0) + (catMap["NOVILHA"] ?? 0);
+    stats.bezerroM = catMap["BEZERRO"] ?? 0;
+    stats.bezerroF = catMap["BEZERRA"] ?? 0;
+    stats.bezerros = stats.bezerroM + stats.bezerroF;
+    stats.novilhoM = catMap["NOVILHO"] ?? 0;
+    stats.novilhoF = catMap["NOVILHA"] ?? 0;
+    stats.novilhos = stats.novilhoM + stats.novilhoF;
     stats.touros   = catMap["TOURO"] ?? 0;
 
     topPastures = await db
@@ -107,19 +111,46 @@ export default async function DashboardPage({
 
       {/* Stat cards */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        {/* Simple cards */}
         {[
           { href: "/animals?status=ACTIVE", label: "Animais Totais", value: stats.totalAnimals,   color: "text-emerald-400", border: "hover:border-emerald-500/30" },
-          { href: "/animals?category=VACA",    label: "Vacas",          value: stats.vacas,          color: "text-blue-400",    border: "hover:border-blue-500/30" },
-          { href: "/animals?category=BEZERRO", label: "Bezerros",       value: stats.bezerros,       color: "text-amber-400",   border: "hover:border-amber-500/30" },
-          { href: "/animals?category=NOVILHO", label: "Novilhos",       value: stats.novilhos,       color: "text-pink-400",    border: "hover:border-pink-500/30" },
-          { href: "/animals?category=TOURO",   label: "Touros",         value: stats.touros,         color: "text-red-400",     border: "hover:border-red-500/30" },
-          { href: "/pastures",                 label: "Pastos Ativos",  value: stats.activePastures, color: "text-teal-400",    border: "hover:border-teal-500/30" },
+          { href: "/animals?category=VACA",  label: "Vacas",         value: stats.vacas,          color: "text-blue-400",    border: "hover:border-blue-500/30" },
+          { href: "/animals?category=TOURO", label: "Touros",        value: stats.touros,         color: "text-red-400",     border: "hover:border-red-500/30" },
+          { href: "/pastures",               label: "Pastos Ativos", value: stats.activePastures, color: "text-teal-400",    border: "hover:border-teal-500/30" },
         ].map(({ href, label, value, color, border }) => (
           <Link key={href} href={href} className={`group rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-4 flex flex-col gap-2 ${border} hover:bg-zinc-900/80 transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]`}>
             <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-widest leading-tight">{label}</span>
             <span className={`text-3xl font-bold tabular-nums ${color}`}>{value}</span>
           </Link>
         ))}
+
+        {/* Bezerros(as) — with breakdown */}
+        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-4 flex flex-col gap-2 hover:border-amber-500/30 hover:bg-zinc-900/80 transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-widest leading-tight">Bezerros(as)</span>
+          <span className="text-3xl font-bold tabular-nums text-amber-400">{stats.bezerros}</span>
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/animals?category=BEZERRO" className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors">
+              ♂ {stats.bezerroM} Bezerros
+            </Link>
+            <Link href="/animals?category=BEZERRA" className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-colors">
+              ♀ {stats.bezerroF} Bezerras
+            </Link>
+          </div>
+        </div>
+
+        {/* Novilhos(as) — with breakdown */}
+        <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-4 flex flex-col gap-2 hover:border-purple-500/30 hover:bg-zinc-900/80 transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-widest leading-tight">Novilhos(as)</span>
+          <span className="text-3xl font-bold tabular-nums text-purple-400">{stats.novilhos}</span>
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/animals?category=NOVILHO" className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors">
+              ♂ {stats.novilhoM} Novilhos
+            </Link>
+            <Link href="/animals?category=NOVILHA" className="text-[10px] px-1.5 py-0.5 rounded bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 transition-colors">
+              ♀ {stats.novilhoF} Novilhas
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* 1. Buscar */}
