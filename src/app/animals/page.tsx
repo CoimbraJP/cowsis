@@ -411,6 +411,38 @@ export default async function AnimalsPage({
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-2">
+                    {animal.status === 'ACTIVE' && (
+                      <details className="relative">
+                        <summary className="cursor-pointer list-none text-[11px] bg-zinc-700 hover:bg-zinc-600 text-zinc-300 px-2 py-1 rounded transition-colors flex items-center gap-1">
+                          Mover <ChevronDown size={11} />
+                        </summary>
+                        <div className="absolute right-0 top-7 z-20 bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-xl w-48 space-y-2">
+                          <p className="text-xs text-zinc-400">Mover para:</p>
+                          <form action={async (fd: FormData) => {
+                            'use server';
+                            const pid = Number(fd.get('toPastureId'));
+                            if (pid) await moveAnimalToPasture(animal.id, animal.pastureId ?? null, pid, null);
+                          }}>
+                            <select
+                              name="toPastureId"
+                              className="w-full px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-white text-xs focus:outline-none"
+                            >
+                              <option value="">Selecione…</option>
+                              {allPastures
+                                .filter((p) => p.id !== animal.pastureId)
+                                .map((p) => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                            <button
+                              type="submit"
+                              className="mt-2 w-full bg-zinc-700 hover:bg-zinc-600 text-white text-xs py-1.5 rounded transition-colors">
+                              Mover
+                            </button>
+                          </form>
+                        </div>
+                      </details>
+                    )}
                     <Link href={`/animals/${animal.id}?from=/animals`}
                       className="text-xs text-white hover:text-emerald-400 transition-colors px-2 py-1 rounded border border-zinc-700 hover:border-zinc-500">
                       Ver
