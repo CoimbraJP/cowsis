@@ -110,14 +110,16 @@ export default async function DashboardPage({
       </div>
 
       {/* Stat cards */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
         {[
-          { href: "/animals?status=ACTIVE",  label: "Animais Totais",  value: stats.totalAnimals,   color: "text-emerald-400", border: "hover:border-emerald-500/30" },
-          { href: "/animals?category=VACA",  label: "Vacas",           value: stats.vacas,          color: "text-blue-400",    border: "hover:border-blue-500/30" },
-          { href: "/animals?bezerros=1",     label: "Bezerros(as)",    value: stats.bezerros,       color: "text-amber-400",   border: "hover:border-amber-500/30" },
-          { href: "/animals?novilhos=1",     label: "Novilhos(as)",    value: stats.novilhos,       color: "text-purple-400",  border: "hover:border-purple-500/30" },
-          { href: "/animals?category=TOURO", label: "Touros",          value: stats.touros,         color: "text-red-400",     border: "hover:border-red-500/30" },
-          { href: "/pastures",               label: "Pastos Ativos",   value: stats.activePastures, color: "text-teal-400",    border: "hover:border-teal-500/30" },
+          { href: "/animals?status=ACTIVE",       label: "Animais Totais", value: stats.totalAnimals,   color: "text-emerald-400", border: "hover:border-emerald-500/30" },
+          { href: "/animals?category=VACA",        label: "Vacas",          value: stats.vacas,          color: "text-blue-400",    border: "hover:border-blue-500/30" },
+          { href: "/animals?category=BEZERRO",     label: "Bezerros",       value: stats.bezerroM,       color: "text-amber-400",   border: "hover:border-amber-500/30" },
+          { href: "/animals?category=BEZERRA",     label: "Bezerras",       value: stats.bezerroF,       color: "text-yellow-400",  border: "hover:border-yellow-500/30" },
+          { href: "/animals?category=NOVILHO",     label: "Novilhos",       value: stats.novilhoM,       color: "text-purple-400",  border: "hover:border-purple-500/30" },
+          { href: "/animals?category=NOVILHA",     label: "Novilhas",       value: stats.novilhoF,       color: "text-pink-400",    border: "hover:border-pink-500/30" },
+          { href: "/animals?category=TOURO",       label: "Touros",         value: stats.touros,         color: "text-red-400",     border: "hover:border-red-500/30" },
+          { href: "/pastures",                     label: "Pastos Ativos",  value: stats.activePastures, color: "text-teal-400",    border: "hover:border-teal-500/30" },
         ].map(({ href, label, value, color, border }) => (
           <Link key={href} href={href} className={`group rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-4 flex flex-col gap-2 ${border} hover:bg-zinc-900/80 transition-all duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]`}>
             <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-widest leading-tight">{label}</span>
