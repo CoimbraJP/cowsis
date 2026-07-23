@@ -30,7 +30,7 @@ export default function RootLayout({
                 <Image src="/logo.png" alt="Pecuária RS" width={36} height={36} className="w-full h-full object-cover" />
               </div>
               <div>
-                <h1 className="text-sm font-bold text-white tracking-tight leading-none">Pecuária RS</h1>
+                <h1 className="text-base font-bold text-white tracking-tight leading-none">Pecuária RS</h1>
                 <p className="text-[10px] text-zinc-500 mt-0.5 leading-none">Gestão Inteligente</p>
               </div>
             </div>
