@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { NavMenu } from "./nav-menu";
+import Image from "next/image";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,14 +26,11 @@ export default function RootLayout({
           {/* Brand */}
           <div className="px-5 py-6 border-b border-zinc-800/60">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-[0_0_16px_rgba(52,211,153,0.30)] shrink-0">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M2 10 C2 6 4 3 7 3 C10 3 12 6 12 10" stroke="#0a0a0a" strokeWidth="2.2" strokeLinecap="round"/>
-                  <circle cx="7" cy="11" r="1.5" fill="#0a0a0a"/>
-                </svg>
+              <div className="w-9 h-9 shrink-0 rounded-lg overflow-hidden">
+                <Image src="/logo.png" alt="Pecuária RS" width={36} height={36} className="w-full h-full object-cover" />
               </div>
               <div>
-                <h1 className="text-sm font-bold text-white tracking-tight leading-none">COWSIS</h1>
+                <h1 className="text-sm font-bold text-white tracking-tight leading-none">Pecuária RS</h1>
                 <p className="text-[10px] text-zinc-500 mt-0.5 leading-none">Gestão Inteligente</p>
               </div>
             </div>
