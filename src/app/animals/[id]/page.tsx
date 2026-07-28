@@ -176,9 +176,9 @@ export default async function AnimalDetailPage({
           </div>
           <div className="col-span-2 space-y-1">
             <label className="text-sm text-zinc-400">Observações de saúde</label>
-            <input name="healthNotes" defaultValue={animal.healthNotes ?? ''}
+            <textarea name="healthNotes" defaultValue={animal.healthNotes ?? ''} rows={4}
               placeholder="Ex: vermifugado em jun/26, sem ocorrências"
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500" />
+              className="w-full resize-y px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 leading-relaxed focus:outline-none focus:border-emerald-500" />
           </div>
         </div>
 

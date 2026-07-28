@@ -3,6 +3,8 @@ import { pastures, animals } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { AuditoriaClient } from './AuditoriaClient';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdmPage() {
   // Fetch all active pastures
   const allPastures = await db

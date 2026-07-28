@@ -87,7 +87,7 @@ export async function getDatabaseCounts() {
    IMPORTAÇÃO DA PLANILHA
    ══════════════════════════════════════════════════════════ */
 
-export const CATEGORIAS_VALIDAS = ['VACA', 'TOURO', 'NOVILHA', 'NOVILHO', 'BEZERRA', 'BEZERRO'] as const;
+const CATEGORIAS_VALIDAS = ['VACA', 'TOURO', 'NOVILHA', 'NOVILHO', 'BEZERRA', 'BEZERRO'] as const;
 
 export type ParsedRow = {
   linha: number;
