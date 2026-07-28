@@ -173,7 +173,7 @@ export default async function PastureDetailPage({
     q.set('sort', next);
     return `${base}?${q.toString()}`;
   };
-  const sortIcon = sortParam === 'tag' ? ' ↑' : sortParam === 'tag_desc' ? ' ↓' : '';
+  const sortIcon = sortParam === 'tag_desc' ? '↓ maior→menor' : '↑ menor→maior';
 
   function AnimalTable({ list }: { list: typeof pastureAnimals }) {
     return (
@@ -371,7 +371,7 @@ export default async function PastureDetailPage({
           <h3 className={`text-xs font-semibold uppercase tracking-wider ${color}`}>
             {label} ({list.length})
           </h3>
-          <SelectableAnimalTable list={list} allPastures={allPastures} pastureId={pastureId} isHistorical={isHistorical} moveAction={moveAnimalToPasture} today={today} />
+          <SelectableAnimalTable list={list} allPastures={allPastures} pastureId={pastureId} isHistorical={isHistorical} moveAction={moveAnimalToPasture} today={today} sortHref={sortHref(`/pastures/${pastureId}`)} sortIcon={sortIcon} />
         </div>
       ))}
       {unknownAnimals.length > 0 && (
@@ -379,7 +379,7 @@ export default async function PastureDetailPage({
           <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
             Outros ({unknownAnimals.length})
           </h3>
-          <SelectableAnimalTable list={unknownAnimals} allPastures={allPastures} pastureId={pastureId} isHistorical={isHistorical} moveAction={moveAnimalToPasture} today={today} />
+          <SelectableAnimalTable list={unknownAnimals} allPastures={allPastures} pastureId={pastureId} isHistorical={isHistorical} moveAction={moveAnimalToPasture} today={today} sortHref={sortHref(`/pastures/${pastureId}`)} sortIcon={sortIcon} />
         </div>
       )}
 

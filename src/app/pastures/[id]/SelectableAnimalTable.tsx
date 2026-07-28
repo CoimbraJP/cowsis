@@ -29,9 +29,11 @@ type Props = {
   isHistorical: boolean;
   moveAction: (animalId: number, fromPastureId: number, toPastureId: number | null, date: string | null) => Promise<void>;
   today: string;
+  sortHref?: string;
+  sortIcon?: string;
 };
 
-export function SelectableAnimalTable({ list, allPastures, pastureId, isHistorical, moveAction, today }: Props) {
+export function SelectableAnimalTable({ list, allPastures, pastureId, isHistorical, moveAction, today, sortHref, sortIcon }: Props) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [, startTransition] = useTransition();
 
@@ -59,7 +61,18 @@ export function SelectableAnimalTable({ list, allPastures, pastureId, isHistoric
       <table className="w-full text-sm table-fixed">
         <thead className="bg-zinc-900 text-zinc-400 uppercase text-xs tracking-wider">
           <tr>
-            <th className={`px-4 py-3 text-left ${isHistorical ? 'w-[25%]' : 'w-[15%]'}`}>Brinco</th>
+            <th className={`px-4 py-3 text-left ${isHistorical ? 'w-[25%]' : 'w-[15%]'}`}>
+              {sortHref ? (
+                <Link href={sortHref} className="group flex items-center gap-1 transition-colors hover:text-white">
+                  Brinco
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                    strokeLinecap="round" strokeLinejoin="round" className="opacity-50 group-hover:opacity-100">
+                    <path d="m21 16-4 4-4-4" /><path d="M17 20V4" /><path d="m3 8 4-4 4 4" /><path d="M7 4v16" />
+                  </svg>
+                  <span className="text-emerald-400">{sortIcon}</span>
+                </Link>
+              ) : 'Brinco'}
+            </th>
             <th className={`px-4 py-3 text-left ${isHistorical ? 'w-[28%]' : 'w-[18%]'}`}>Categoria</th>
             <th className={`px-4 py-3 text-left ${isHistorical ? 'w-[30%]' : 'w-[16%]'}`}>Status</th>
             {!isHistorical && <th className="px-4 py-3 text-left">Mover</th>}
