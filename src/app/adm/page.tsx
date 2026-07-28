@@ -39,16 +39,22 @@ export default async function AdmPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div>
-        <div className="flex items-center gap-2">
-          <h2 className="text-2xl font-bold tracking-tight text-white">Auditoria de Pasto</h2>
-          <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-medium border border-amber-500/20">
-            ADM
-          </span>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold tracking-tight text-white">Auditoria de Pasto</h2>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-medium border border-amber-500/20">
+              ADM
+            </span>
+          </div>
+          <p className="text-sm text-zinc-500 mt-1">
+            Selecione um pasto e confirme quais animais estão presentes.
+          </p>
         </div>
-        <p className="text-sm text-zinc-500 mt-1">
-          Selecione um pasto e confirme quais animais estão presentes.
-        </p>
+        <a href="/adm/setup"
+          className="shrink-0 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white">
+          Carga inicial / Zerar banco
+        </a>
       </div>
 
       <AuditoriaClient
