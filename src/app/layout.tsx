@@ -7,8 +7,8 @@ import Image from "next/image";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "COWSIS - Gestão de Gado",
-  description: "Sistema inteligente de gestão de fazendas",
+  title: "Pecuária RS — Gestão de Rebanho",
+  description: "Sistema de gestão de rebanho bovino",
 };
 
 export default function RootLayout({
