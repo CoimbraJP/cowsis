@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Trees, Beef, History, Syringe,
-  BarChart3, CalendarDays, FileText, Skull, Baby, ClipboardCheck, DollarSign,
+  BarChart3, CalendarDays, FileText, Skull, Baby, ClipboardCheck, DollarSign, Sparkles,
 } from 'lucide-react';
 
 const NAV = [
@@ -23,20 +23,21 @@ const REPORTS = [
   { href: '/analise',            label: 'Análise por Data',  Icon: CalendarDays },
   { href: '/pastures/historico', label: 'Histórico',         Icon: BarChart3   },
   { href: '/adm',                label: 'Auditoria',          Icon: ClipboardCheck, badge: 'TESTE' },
+  { href: '/pasto-inteligente.html', label: 'Pasto Inteligente', Icon: Sparkles, badge: 'DEMO', external: true },
 ];
 
-function NavLink({ href, label, Icon, badge }: { href: string; label: string; Icon: React.ElementType; badge?: string }) {
+function NavLink({ href, label, Icon, badge, external }: { href: string; label: string; Icon: React.ElementType; badge?: string; external?: boolean }) {
   const path = usePathname();
-  const active = href === '/' ? path === '/' : path.startsWith(href);
-  return (
-    <Link
-      href={href}
-      className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-        active
-          ? 'bg-emerald-500/10 text-emerald-400 shadow-[inset_0_1px_0_rgba(52,211,153,0.08)]'
-          : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/70'
-      }`}
-    >
+  const active = !external && (href === '/' ? path === '/' : path.startsWith(href));
+
+  const className = `group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+    active
+      ? 'bg-emerald-500/10 text-emerald-400 shadow-[inset_0_1px_0_rgba(52,211,153,0.08)]'
+      : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/70'
+  }`;
+
+  const content = (
+    <>
       <Icon
         size={17}
         className={active ? 'text-emerald-400' : 'text-zinc-500 group-hover:text-zinc-300 transition-colors'}
@@ -52,6 +53,20 @@ function NavLink({ href, label, Icon, badge }: { href: string; label: string; Ic
       {active && (
         <span className="w-1 h-4 rounded-full bg-emerald-400 opacity-70" />
       )}
+    </>
+  );
+
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {content}
     </Link>
   );
 }
@@ -70,7 +85,14 @@ export function NavMenu() {
       </div>
 
       {REPORTS.map((item) => (
-        <NavLink key={item.href} href={item.href} label={item.label} Icon={item.Icon} badge={'badge' in item ? item.badge : undefined} />
+        <NavLink
+          key={item.href}
+          href={item.href}
+          label={item.label}
+          Icon={item.Icon}
+          badge={'badge' in item ? item.badge : undefined}
+          external={'external' in item ? item.external : undefined}
+        />
       ))}
     </nav>
   );
