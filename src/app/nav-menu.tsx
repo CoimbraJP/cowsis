@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Trees, Beef, History, Syringe,
-  BarChart3, CalendarDays, FileText, Skull, Baby, ClipboardCheck,
+  BarChart3, CalendarDays, FileText, Skull, Baby, ClipboardCheck, DollarSign,
 } from 'lucide-react';
 
 const NAV = [
@@ -15,6 +15,7 @@ const NAV = [
   { href: '/inseminations',  label: 'Inseminações',    Icon: Syringe         },
   { href: '/mortes',         label: 'Mortes',          Icon: Skull           },
   { href: '/nascimentos',    label: 'Nascimentos',     Icon: Baby            },
+  { href: '/vendas',         label: 'Vendas',          Icon: DollarSign      },
 ];
 
 const REPORTS = [

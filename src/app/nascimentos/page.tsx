@@ -99,6 +99,7 @@ export default async function NascimentosPage({
   });
 
   switch (sort) {
+    case 'date':
     case 'date_asc':     rows.sort((a, b) => a.birthDate.localeCompare(b.birthDate)); break;
     case 'date_desc':    rows.sort((a, b) => b.birthDate.localeCompare(a.birthDate)); break;
     case 'tag':          rows.sort((a, b) => parseTag(a.tagNumber) - parseTag(b.tagNumber)); break;

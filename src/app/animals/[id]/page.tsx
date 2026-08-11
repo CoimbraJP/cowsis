@@ -1,7 +1,7 @@
 import { db } from '@/db';
 import { animals, pastures, inseminations, animalTransactions } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { updateAnimal, addVaccine, deleteVaccine, updateTransactionDate, addInsemination, updateInsemination, registerEvent } from '../actions';
+import { updateAnimal, addVaccine, deleteVaccine, updateTransactionDate, updateTransactionAmount, addInsemination, updateInsemination, registerEvent } from '../actions';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -435,19 +435,36 @@ export default async function AnimalDetailPage({
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-3">
           <h3 className="text-lg font-semibold text-white">📋 Outras movimentações ({others.length})</h3>
           {others.map((tx) => (
-            <div key={tx.id} className="flex items-center justify-between text-sm py-2 border-b border-zinc-800 last:border-0">
-              <div className="flex flex-wrap gap-2 text-zinc-400">
+            <div key={tx.id} className="flex flex-wrap items-center gap-3 py-2 border-b border-zinc-800 last:border-0">
+              <div className="flex flex-1 flex-wrap gap-2 text-zinc-400 min-w-[140px]">
                 <span className="text-white">{TX_LABELS[tx.type] ?? tx.type}</span>
                 {tx.notes && <span className="text-zinc-500 italic">• {tx.notes}</span>}
-                {tx.amount != null && (
-                  <span className={tx.type === 'SALE' ? 'text-blue-400 font-medium' : 'text-red-400 font-medium'}>
-                    • {tx.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </span>
-                )}
               </div>
-              <span className="text-zinc-500 text-xs tabular-nums">
-                {fmtDate(tx.transactionDate)}
-              </span>
+              <form action={async (fd: FormData) => {
+                'use server';
+                const d = fd.get('date') as string;
+                if (d) await updateTransactionDate(tx.id, d);
+              }} className="flex items-center gap-1.5">
+                <input type="date" name="date" defaultValue={tx.transactionDate ?? today}
+                  className="px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:border-emerald-500" />
+                <button type="submit" className="px-2 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 text-white rounded transition-colors whitespace-nowrap">
+                  Salvar data
+                </button>
+              </form>
+              {(tx.type === 'SALE' || tx.amount != null) && (
+                <form action={async (fd: FormData) => {
+                  'use server';
+                  const raw = (fd.get('amount') as string)?.trim();
+                  const val = raw ? Number(raw.replace(',', '.')) : null;
+                  await updateTransactionAmount(tx.id, val !== null && !isNaN(val) ? val : null);
+                }} className="flex items-center gap-1.5">
+                  <input type="number" name="amount" step="0.01" min="0" defaultValue={tx.amount ?? ''} placeholder="0,00"
+                    className="w-24 px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-white text-right focus:outline-none focus:border-emerald-500" />
+                  <button type="submit" className="px-2 py-1 text-xs bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded transition-colors font-medium whitespace-nowrap">
+                    Salvar valor
+                  </button>
+                </form>
+              )}
             </div>
           ))}
         </div>

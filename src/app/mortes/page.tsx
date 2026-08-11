@@ -104,6 +104,7 @@ export default async function MortesPage({
 
   // Sort
   switch (sort) {
+    case 'date':
     case 'date_asc':     rows.sort((a, b) => a.deathDate.localeCompare(b.deathDate)); break;
     case 'date_desc':    rows.sort((a, b) => b.deathDate.localeCompare(a.deathDate)); break;
     case 'tag':          rows.sort((a, b) => parseTag(a.tagNumber) - parseTag(b.tagNumber)); break;

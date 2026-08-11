@@ -388,6 +388,21 @@ export async function updateTransactionDate(txId: number, newDate: string) {
 
   revalidatePath('/transactions');
   revalidatePath('/animals');
+  revalidatePath('/mortes');
+  revalidatePath('/nascimentos');
+  revalidatePath('/vendas');
+}
+
+export async function updateTransactionAmount(txId: number, newAmount: number | null) {
+  await db.update(animalTransactions)
+    .set({ amount: newAmount })
+    .where(eq(animalTransactions.id, txId));
+
+  revalidatePath('/transactions');
+  revalidatePath('/animals');
+  revalidatePath('/mortes');
+  revalidatePath('/nascimentos');
+  revalidatePath('/vendas');
 }
 
 export async function deleteAnimal(id: number) {
