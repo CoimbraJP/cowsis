@@ -21,7 +21,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-zinc-950 text-zinc-50 min-h-screen flex flex-col md:flex-row`}>
 
         {/* Sidebar */}
-        <aside className="w-full md:w-60 shrink-0 bg-zinc-900 border-r border-zinc-800/60 flex flex-col md:min-h-screen">
+        <aside className="w-full md:w-64 shrink-0 bg-zinc-900 border-r border-zinc-800/60 flex flex-col md:min-h-screen">
 
           {/* Brand */}
           <div className="px-5 py-6 border-b border-zinc-800/60">

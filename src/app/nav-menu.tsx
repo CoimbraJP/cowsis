@@ -42,10 +42,10 @@ function NavLink({ href, label, Icon, badge, external }: { href: string; label: 
         size={17}
         className={active ? 'text-emerald-400' : 'text-zinc-500 group-hover:text-zinc-300 transition-colors'}
       />
-      <span className="flex-1 flex items-center gap-1.5">
-        {label}
+      <span className="flex-1 flex items-center gap-1.5 whitespace-nowrap min-w-0">
+        <span className="whitespace-nowrap">{label}</span>
         {badge && (
-          <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 leading-none">
+          <span className="shrink-0 text-[9px] font-semibold px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 leading-none">
             {badge}
           </span>
         )}
