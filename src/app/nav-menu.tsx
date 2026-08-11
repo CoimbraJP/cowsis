@@ -22,7 +22,7 @@ const REPORTS = [
   { href: '/relatorio',          label: 'Relatório PDF',     Icon: FileText    },
   { href: '/analise',            label: 'Análise por Data',  Icon: CalendarDays },
   { href: '/pastures/historico', label: 'Histórico',         Icon: BarChart3   },
-  { href: '/adm',                label: 'Auditoria de Pasto', Icon: ClipboardCheck, badge: 'TESTE' },
+  { href: '/adm',                label: 'Auditoria',          Icon: ClipboardCheck, badge: 'TESTE' },
 ];
 
 function NavLink({ href, label, Icon, badge }: { href: string; label: string; Icon: React.ElementType; badge?: string }) {
