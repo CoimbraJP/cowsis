@@ -22,8 +22,8 @@ const REPORTS = [
   { href: '/relatorio',          label: 'Relatório PDF',     Icon: FileText    },
   { href: '/analise',            label: 'Análise por Data',  Icon: CalendarDays },
   { href: '/pastures/historico', label: 'Histórico',         Icon: BarChart3   },
-  { href: '/adm',                label: 'Auditoria',          Icon: ClipboardCheck, badge: 'TESTE' },
-  { href: '/pasto-inteligente.html', label: 'Pasto Inteligente', Icon: Sparkles, badge: 'DEMO', external: true },
+  { href: '/adm',                label: 'Auditoria',          Icon: ClipboardCheck, badge: 'DEMO' },
+  { href: '/pasto-inteligente',  label: 'Pasto Inteligente', Icon: Sparkles, badge: 'DEMO' },
 ];
 
 function NavLink({ href, label, Icon, badge, external }: { href: string; label: string; Icon: React.ElementType; badge?: string; external?: boolean }) {
