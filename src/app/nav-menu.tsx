@@ -91,7 +91,6 @@ export function NavMenu() {
           label={item.label}
           Icon={item.Icon}
           badge={'badge' in item ? item.badge : undefined}
-          external={'external' in item ? item.external : undefined}
         />
       ))}
     </nav>
